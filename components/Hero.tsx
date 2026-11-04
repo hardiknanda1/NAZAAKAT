@@ -25,13 +25,21 @@ function HangerIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-// Dotted figure outline used on the "Body Analysis" card.
-function Silhouette() {
+// Dotted front-view female figure for the "Body Analysis" card.
+// One half is drawn and mirrored so the figure stays symmetrical.
+const figureHalf =
+  "M30 19.5c1.4 0 2.6-.2 2.6-.2V23c2.6 1 6.4 1.8 8.6 3.4 2 1.4 2.6 3.6 2.9 6.6l1.4 17.5c.4 5.2 1.3 10.6 1.9 15.4.4 3 .3 5.6-1 6.8-.8.7-1.8.2-2-1L43 52.2c-.4-3.4-1.2-7.2-2-10.2" +
+  "c.4 4.6-.4 9-2.6 13.2-1 1.9-.8 4 .6 6.4 2.6 4.4 3.2 10.4 2.2 17-1 6.4-2.6 12-3.2 18.4-.5 5.6-.2 11 .2 16.6.3 3.6-.4 6.8-2.4 7.2-1.6.3-2.6-.4-2.7-1.6" +
+  "-.4-5.4-.4-11-.6-16.4-.2-6-.9-12.4-1.4-18.6L30 79";
+
+function Silhouette({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 40 110" className="h-[6.5em] w-[2.4em] shrink-0 text-taupe" fill="none" stroke="currentColor" strokeWidth={0.9} strokeDasharray="2 2" aria-hidden>
-      <circle cx="20" cy="9" r="6" />
-      <path d="M17 15v4c-5 1-8 3-8 7l1 14c0 4 3 6 3 10s-3 8-3 13c0 4 3 7 4 10l1 30M23 15v4c5 1 8 3 8 7l-1 14c0 4-3 6-3 10s3 8 3 13c0 4-3 7-4 10l-1 30" />
-      <path d="M9 27 5 48l2 10M31 27l4 21-2 10" />
+    <svg viewBox="0 0 60 140" className={`shrink-0 text-chocolate/70 ${className}`} fill="none" aria-hidden>
+      <g stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="0.1 1.9">
+        <ellipse cx="30" cy="11" rx="6" ry="7.6" />
+        <path d={figureHalf} />
+        <path d={figureHalf} transform="translate(60 0) scale(-1 1)" />
+      </g>
     </svg>
   );
 }
@@ -42,27 +50,30 @@ const features = [
   { label: "Wardrobe Planning", Icon: Layers },
 ];
 
-// Fabric-tone swatches stand in until the catalogue photographs are added.
 const looks = [
-  { name: "look-1", tone: "#6b2c32" },
-  { name: "look-2", tone: "#e4d8c6" },
-  { name: "look-3", tone: "#2f4a3b" },
+  { name: "look-1", alt: "Burgundy embroidered tunic set" },
+  { name: "look-2", alt: "Ivory belted kurta" },
+  { name: "look-3", alt: "Emerald belted dress" },
 ];
 
 const card = "border border-white/80 bg-[#f8f4ef] shadow-[0_12px_40px_-14px_rgba(73,55,46,0.22)]";
 
-// Softens the photograph's top and side edges into the section background.
-const fade: React.CSSProperties = {
-  maskImage: "linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 6%)",
-  WebkitMaskImage: "linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 6%)",
-  maskComposite: "intersect",
-  WebkitMaskComposite: "source-in",
-};
+// Softens the photograph into the section background: left/top edges and a long fade at the bottom.
+function fade(right: boolean): React.CSSProperties {
+  const x = `linear-gradient(to right, transparent, #000 9%${right ? ", #000 93%, transparent" : ""})`;
+  const y = "linear-gradient(to bottom, transparent, #000 5%, #000 91%, transparent)";
+  return {
+    maskImage: `${x}, ${y}`,
+    WebkitMaskImage: `${x}, ${y}`,
+    maskComposite: "intersect",
+    WebkitMaskComposite: "source-in",
+  };
+}
 
 function BodyCard({ className = "" }: { className?: string }) {
   return (
-    <div aria-hidden className={`${card} flex items-center gap-[0.9em] rounded-2xl ${className}`}>
-      <Silhouette />
+    <div className={`${card} flex items-center gap-[0.9em] rounded-2xl ${className}`}>
+      <Silhouette className="h-[6.6em] w-[2.9em]" />
       <div className="min-w-0 flex-1">
         <p className="flex items-center justify-between gap-2 font-medium text-charcoal">
           Body Analysis <CircleCheck strokeWidth={1.5} className="h-[1.3em] w-[1.3em] shrink-0 text-chocolate" />
@@ -75,16 +86,18 @@ function BodyCard({ className = "" }: { className?: string }) {
   );
 }
 
+const alt = "An elegant woman in an embroidered ivory outfit and lace dupatta, seated in soft natural light";
+
 export default function Hero() {
   return (
     <section
       id="home"
       aria-labelledby="hero-title"
-      className="relative overflow-hidden bg-[linear-gradient(100deg,#f6f1eb_0%,#f2eae2_55%,#ede4db_100%)] pt-32 sm:pt-36 lg:pt-32"
+      className="relative overflow-hidden bg-[linear-gradient(to_bottom,transparent_60%,#f1ebe3),linear-gradient(100deg,#f6f1eb_0%,#f2eae2_55%,#ede4db_100%)] lg:flex lg:min-h-[max(100svh,calc(var(--hero-w)*0.805+6rem))] lg:items-center lg:[--hero-w:min(50vw,calc((100svh-6rem)/0.805))] xl:[--hero-w:min(58vw,calc((100svh-6rem)/0.805),68rem)]"
     >
-      <div className="container-x grid items-center gap-14 lg:grid-cols-12 lg:gap-8">
+      <div className="container-x relative z-10 pt-32 sm:pt-36 lg:pt-28 lg:pb-16">
         {/* Copy */}
-        <div className="lg:col-span-6 lg:self-center lg:pb-16">
+        <div className="lg:max-w-[44vw] xl:max-w-[min(42vw,40rem)]">
           <p className="eyebrow">Personal Fashion Consulting</p>
           <h1
             id="hero-title"
@@ -115,71 +128,54 @@ export default function Hero() {
             ))}
           </ul>
         </div>
+      </div>
 
-        {/* Visual: the portrait composition, with readable detail cards laid over it */}
-        <div className="relative -mx-5 sm:mx-0 lg:col-span-6 lg:-mr-12 lg:self-end xl:-mr-24">
-          {/* Phones: narrower crop with one card */}
-          <div className="relative mx-auto max-w-[30rem] md:hidden">
-            <Image
-              src={heroNarrow}
-              alt="An elegant woman in an embroidered ivory outfit, seated in soft natural light"
-              sizes="(min-width: 480px) 30rem, 100vw"
-              placeholder="blur"
-              preload
-              className="h-auto w-full"
-              style={fade}
-            />
-            <Reveal delay={0.2} className="absolute right-4 bottom-[7%] w-[56%] max-w-[15rem]">
-              <BodyCard className="p-3.5 text-sm" />
-            </Reveal>
-          </div>
+      {/* Phones: narrower crop with one card */}
+      <div className="relative mx-auto mt-10 max-w-[32rem] md:hidden">
+        <Image src={heroNarrow} alt={alt} sizes="(min-width: 512px) 32rem, 100vw" placeholder="blur" preload className="h-auto w-full" style={fade(true)} />
+        <Reveal delay={0.2} className="absolute right-4 bottom-[12%] w-[56%] max-w-[15rem]">
+          <BodyCard className="p-3.5 text-sm" />
+        </Reveal>
+      </div>
 
-          {/* Tablet and desktop: full composition. Sizes use container units so cards scale with the image. */}
-          <div className="relative hidden [container-type:inline-size] md:block">
-            <Image
-              src={heroWide}
-              alt="An elegant woman in an embroidered ivory outfit, seated in soft natural light"
-              sizes="(min-width: 1280px) 44rem, (min-width: 1024px) 55vw, 100vw"
-              placeholder="blur"
-              preload
-              className="h-auto w-full"
-              style={fade}
-            />
-            <div aria-hidden className="pointer-events-none text-[1.9cqw] leading-snug whitespace-nowrap">
-              <Reveal delay={0.2} className="absolute top-[12.5cqw] left-[63cqw] w-[35cqw]">
-                <BodyCard className="min-h-[19.1cqw] p-[1.9cqw]" />
-              </Reveal>
+      {/* Tablet: in flow. Desktop: bleeds to the right edge of the screen and sits on the section's bottom edge.
+          Card sizes use container units so they scale with the photograph and cover the cards drawn into it. */}
+      <div className="relative mt-10 hidden [container-type:inline-size] md:block lg:absolute lg:right-0 lg:bottom-0 lg:mt-0 lg:w-[var(--hero-w)]">
+        <Image
+          src={heroWide}
+          alt={alt}
+          sizes="(min-width: 1024px) 58vw, 100vw"
+          placeholder="blur"
+          preload
+          className="h-auto w-full"
+          style={fade(false)}
+        />
+        <div aria-hidden className="pointer-events-none text-[1.82cqw] leading-snug whitespace-nowrap">
+          <Reveal delay={0.2} className="absolute top-[12cqw] left-[64.5cqw] w-[32cqw]">
+            <BodyCard className="min-h-[18.2cqw] p-[1.8cqw]" />
+          </Reveal>
 
-              <Reveal delay={0.35} className="absolute top-[37.2cqw] left-[59.9cqw] w-[38cqw]">
-                <div className={`${card} min-h-[19.2cqw] rounded-[1.6cqw] p-[1.9cqw]`}>
-                  <p className="text-[1.05em] font-medium text-charcoal">Curated For You</p>
-                  <div className="mt-[1.3cqw] flex items-center gap-[0.9cqw]">
-                    {looks.map((l) => (
-                      <Photo
-                        key={l.name}
-                        name={l.name}
-                        alt=""
-                        className="aspect-[4/5] flex-1 rounded-[0.8cqw]"
-                        sizes="120px"
-                        fallback={<div className="h-full w-full" style={{ background: l.tone }} />}
-                      />
-                    ))}
-                    <CircleArrowRight strokeWidth={1.25} className="ml-[0.4cqw] h-[2.8cqw] w-[2.8cqw] shrink-0 text-chocolate" />
-                  </div>
-                </div>
-              </Reveal>
-
-              <Reveal delay={0.5} className="absolute top-[58.6cqw] left-[63cqw] w-[35cqw]">
-                <ul className={`${card} flex min-h-[16.8cqw] flex-col justify-center gap-[1.2cqw] rounded-[1.6cqw] p-[1.9cqw] text-charcoal`}>
-                  {["Flatter Your Proportions", "Style Recommendations", "Complete Outfit Guidance"].map((t) => (
-                    <li key={t} className="flex items-center gap-[1cqw]">
-                      <CircleCheck strokeWidth={1.5} className="h-[2cqw] w-[2cqw] shrink-0 text-chocolate" /> {t}
-                    </li>
-                  ))}
-                </ul>
-              </Reveal>
+          <Reveal delay={0.35} className="absolute top-[35.8cqw] left-[61.5cqw] w-[35cqw]">
+            <div className={`${card} min-h-[18.4cqw] rounded-2xl p-[1.8cqw]`}>
+              <p className="text-[1.05em] font-medium text-charcoal">Curated For You</p>
+              <div className="mt-[1.2cqw] flex items-center gap-[0.8cqw]">
+                {looks.map((l) => (
+                  <Photo key={l.name} name={l.name} alt={l.alt} className="aspect-[4/5] flex-1 rounded-[0.8cqw]" sizes="140px" />
+                ))}
+                <CircleArrowRight strokeWidth={1.25} className="ml-[0.4cqw] h-[2.7cqw] w-[2.7cqw] shrink-0 text-chocolate" />
+              </div>
             </div>
-          </div>
+          </Reveal>
+
+          <Reveal delay={0.5} className="absolute top-[56.3cqw] left-[64.5cqw] w-[32cqw]">
+            <ul className={`${card} flex min-h-[16.1cqw] flex-col justify-center gap-[1.1cqw] rounded-2xl p-[1.8cqw] text-charcoal`}>
+              {["Flatter Your Proportions", "Style Recommendations", "Complete Outfit Guidance"].map((t) => (
+                <li key={t} className="flex items-center gap-[0.9cqw]">
+                  <CircleCheck strokeWidth={1.5} className="h-[1.9cqw] w-[1.9cqw] shrink-0 text-chocolate" /> {t}
+                </li>
+              ))}
+            </ul>
+          </Reveal>
         </div>
       </div>
     </section>

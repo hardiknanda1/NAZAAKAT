@@ -33,7 +33,7 @@ The supplied logo is in `public/logo.png` (favicons generated from it in `app/ic
 | `public/logo.png` | Brand logo (header, footer, consultation page). Replace to update everywhere. |
 | `app/opengraph-image.jpg` (1200×630) | Social share image (optional). |
 | `public/images/hero-wide.webp`, `hero-narrow.webp` | Hero portrait (tablet/desktop and phone crops). The desktop detail cards are positioned over this exact composition; if you replace it with a different photo, adjust the card positions in `components/Hero.tsx`. A higher-resolution original will look sharper on retina screens. |
-| `public/images/look-1.jpg` … `look-3.jpg` | Three small outfit thumbnails in the hero "Curated For You" card (4:5). Fabric-tone swatches show until added. |
+| `public/images/look-1.jpg` … `look-3.jpg` | Outfit thumbnails in the hero "Curated For You" card (taken from the design mockup; replace with 4:5 product photos when available). |
 | `public/images/services.jpg` | Services section (4:5, desktop only). |
 | `public/images/about.jpg` | About section (4:5). |
 
