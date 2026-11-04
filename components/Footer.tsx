@@ -69,8 +69,8 @@ export default async function Footer() {
                 </li>
               ))}
               <li>
-                <a href="#book" className="inline-block py-1 hover:text-chocolate">
-                  Book Consultation
+                <a href="/start" className="inline-block py-1 hover:text-chocolate">
+                  Start Consultation
                 </a>
               </li>
             </ul>

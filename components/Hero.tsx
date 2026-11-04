@@ -111,8 +111,8 @@ export default function Hero() {
             fashion guidance designed around <strong className="font-medium text-charcoal">you</strong>.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <a href="#book" className="btn-primary text-lg">
-              Book Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
+            <a href="/start" className="btn-primary text-lg">
+              Start Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
             </a>
             <a href="#services" className="btn-secondary text-lg">
               Explore Our Services

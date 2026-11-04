@@ -75,3 +75,8 @@ export function jaasToken(room: string, moderator: boolean) {
   const signature = createSign("RSA-SHA256").update(unsigned).sign(privateKey);
   return `${unsigned}.${b64url(signature)}`;
 }
+
+/** The single room every "Start Consultation" button opens (direct-consultation site). */
+export function directRoom() {
+  return roomForBooking("direct-consultation");
+}

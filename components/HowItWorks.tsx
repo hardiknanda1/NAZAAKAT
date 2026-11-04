@@ -2,8 +2,8 @@ import Reveal from "./Reveal";
 
 const steps = [
   {
-    title: "Book Your Consultation",
-    text: "Choose a convenient time and share your WhatsApp number.",
+    title: "Start Your Consultation",
+    text: "Tap Start Consultation and allow your camera and microphone. No app or account needed.",
   },
   {
     title: "Meet Your Style Consultant",
@@ -44,8 +44,8 @@ export default function HowItWorks() {
         </ol>
 
         <Reveal className="mt-16 lg:mt-20">
-          <a href="#book" className="btn border border-ivory text-lg text-ivory hover:bg-ivory hover:text-chocolate">
-            Book Your Consultation
+          <a href="/start" className="btn border border-ivory text-lg text-ivory hover:bg-ivory hover:text-chocolate">
+            Start Your Consultation
           </a>
         </Reveal>
       </div>

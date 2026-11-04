@@ -52,8 +52,8 @@ export default function Header({ logo }: { logo: ReactNode }) {
         </nav>
 
         <div className="flex items-center gap-2">
-          <a href="#book" className="btn-primary hidden min-h-12 px-6 text-[0.95rem] sm:inline-flex">
-            Book Consultation
+          <a href="/start" className="btn-primary hidden min-h-12 px-6 text-[0.95rem] sm:inline-flex">
+            Start Consultation
           </a>
           <button
             type="button"
@@ -80,8 +80,8 @@ export default function Header({ logo }: { logo: ReactNode }) {
             ))}
           </ul>
           <div className="container-x py-8">
-            <a href="#book" onClick={close} className="btn-primary w-full text-lg">
-              Book Consultation
+            <a href="/start" onClick={close} className="btn-primary w-full text-lg">
+              Start Consultation
             </a>
           </div>
         </nav>
