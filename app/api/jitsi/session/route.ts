@@ -1,4 +1,4 @@
-import { directRoom, isHost, isValidRoom, jaasAppId, jaasConfigured, jaasToken } from "@/lib/meeting";
+import { isHost, isValidRoom, jaasAppId, jaasConfigured, jaasToken, roomForBooking } from "@/lib/meeting";
 
 // Returns what the browser needs to open a consultation room.
 // With JaaS configured, only rooms created by a real booking get a token.
@@ -50,7 +50,7 @@ export function GET() {
       problems.push("JAAS_APP_ID should look like vpaas-magic-cookie-xxxxxxxx (copy it exactly from the JaaS console).");
     }
     try {
-      jaasToken(directRoom(), false);
+      jaasToken(roomForBooking("status-check"), false);
     } catch {
       problems.push("JAAS_PRIVATE_KEY could not be read. Paste the whole key file, including the BEGIN and END lines.");
     }
