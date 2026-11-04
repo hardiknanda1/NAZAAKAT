@@ -86,6 +86,12 @@ export default function CalendlyEmbed({ url, fallback }: { url: string; fallback
         )}
         <div ref={box} className="relative min-h-[720px] w-full" title="Choose a consultation time" />
       </div>
+      <p className="mt-4 text-center text-base text-muted">
+        Calendar not showing?{" "}
+        <a href={url} target="_blank" rel="noopener noreferrer" className="font-medium text-chocolate underline underline-offset-4">
+          Open it in a new tab
+        </a>
+      </p>
     </div>
   );
 }
