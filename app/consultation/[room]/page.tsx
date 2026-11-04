@@ -21,7 +21,7 @@ export default function ConsultationPage({ params }: PageProps<"/consultation/[r
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-beige">
-        <div className="container-x flex h-20 items-center">
+        <div className="container-x flex h-24 items-center">
           <Link href="/" aria-label="NAZAAKAT home">
             <Logo />
           </Link>

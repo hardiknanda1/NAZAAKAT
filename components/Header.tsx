@@ -34,7 +34,7 @@ export default function Header({ logo }: { logo: ReactNode }) {
         scrolled || open ? "bg-ivory/95 shadow-[0_1px_0_rgba(73,55,46,0.08)] backdrop-blur-sm" : "bg-transparent"
       }`}
     >
-      <div className="container-x flex h-20 items-center justify-between gap-6">
+      <div className="container-x flex h-24 items-center justify-between gap-6">
         <a href="#home" aria-label="NAZAAKAT — back to top" onClick={close} className="shrink-0">
           {logo}
         </a>
@@ -69,7 +69,7 @@ export default function Header({ logo }: { logo: ReactNode }) {
       </div>
 
       {open && (
-        <nav id="mobile-menu" aria-label="Mobile" className="h-[calc(100dvh-5rem)] overflow-y-auto bg-ivory lg:hidden">
+        <nav id="mobile-menu" aria-label="Mobile" className="h-[calc(100dvh-6rem)] overflow-y-auto bg-ivory lg:hidden">
           <ul className="container-x flex flex-col pt-4">
             {nav.map((item) => (
               <li key={item.href} className="border-b border-beige">

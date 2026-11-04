@@ -51,11 +51,11 @@ export default async function Footer() {
         </Reveal>
       </section>
 
-      <footer className="bg-charcoal py-16 text-beige">
+      <footer className="border-t border-taupe/40 bg-beige py-16 text-charcoal">
         <div className="container-x grid gap-12 md:grid-cols-12">
           <div className="md:col-span-5">
-            <Logo tone="light" className="h-12 w-44" />
-            <p className="mt-6 max-w-sm text-base">
+            <Logo className="h-24 w-32" />
+            <p className="mt-6 max-w-sm text-base text-muted">
               Personal fashion consulting for women who want to feel like themselves — beautifully.
             </p>
           </div>
@@ -63,20 +63,20 @@ export default async function Footer() {
             <ul className="grid grid-cols-2 gap-x-6 gap-y-3">
               {nav.map((item) => (
                 <li key={item.href}>
-                  <a href={item.href} className="inline-block py-1 hover:text-ivory">
+                  <a href={item.href} className="inline-block py-1 hover:text-chocolate">
                     {item.label}
                   </a>
                 </li>
               ))}
               <li>
-                <a href="#book" className="inline-block py-1 hover:text-ivory">
+                <a href="#book" className="inline-block py-1 hover:text-chocolate">
                   Book Consultation
                 </a>
               </li>
             </ul>
           </nav>
         </div>
-        <div className="container-x mt-14 border-t border-beige/20 pt-8 text-sm">
+        <div className="container-x mt-14 border-t border-taupe/40 pt-8 text-sm">
           © {await currentYear()} NAZAAKAT. All rights reserved.
         </div>
       </footer>

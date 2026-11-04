@@ -1,4 +1,7 @@
 import { ArrowRight, CircleArrowRight, CircleCheck, Layers } from "lucide-react";
+import Image from "next/image";
+import heroNarrow from "@/public/images/hero-narrow.webp";
+import heroWide from "@/public/images/hero-wide.webp";
 import Photo from "./Photo";
 import Reveal from "./Reveal";
 
@@ -25,7 +28,7 @@ function HangerIcon(props: React.SVGProps<SVGSVGElement>) {
 // Dotted figure outline used on the "Body Analysis" card.
 function Silhouette() {
   return (
-    <svg viewBox="0 0 40 110" className="h-24 w-9 text-taupe" fill="none" stroke="currentColor" strokeWidth={0.9} strokeDasharray="2 2" aria-hidden>
+    <svg viewBox="0 0 40 110" className="h-[6.5em] w-[2.4em] shrink-0 text-taupe" fill="none" stroke="currentColor" strokeWidth={0.9} strokeDasharray="2 2" aria-hidden>
       <circle cx="20" cy="9" r="6" />
       <path d="M17 15v4c-5 1-8 3-8 7l1 14c0 4 3 6 3 10s-3 8-3 13c0 4 3 7 4 10l1 30M23 15v4c5 1 8 3 8 7l-1 14c0 4-3 6-3 10s3 8 3 13c0 4-3 7-4 10l-1 30" />
       <path d="M9 27 5 48l2 10M31 27l4 21-2 10" />
@@ -46,18 +49,42 @@ const looks = [
   { name: "look-3", tone: "#2f4a3b" },
 ];
 
-const card = "border border-white/70 bg-ivory/90 shadow-[0_12px_40px_-12px_rgba(73,55,46,0.18)] backdrop-blur-sm";
+const card = "border border-white/80 bg-[#f8f4ef] shadow-[0_12px_40px_-14px_rgba(73,55,46,0.22)]";
+
+// Softens the photograph's top and side edges into the section background.
+const fade: React.CSSProperties = {
+  maskImage: "linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 6%)",
+  WebkitMaskImage: "linear-gradient(to right, transparent, #000 7%, #000 93%, transparent), linear-gradient(to bottom, transparent, #000 6%)",
+  maskComposite: "intersect",
+  WebkitMaskComposite: "source-in",
+};
+
+function BodyCard({ className = "" }: { className?: string }) {
+  return (
+    <div aria-hidden className={`${card} flex items-center gap-[0.9em] rounded-2xl ${className}`}>
+      <Silhouette />
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center justify-between gap-2 font-medium text-charcoal">
+          Body Analysis <CircleCheck strokeWidth={1.5} className="h-[1.3em] w-[1.3em] shrink-0 text-chocolate" />
+        </p>
+        <div className="my-[0.8em] h-px bg-beige" />
+        <p className="text-[0.92em] text-muted">Your Shape</p>
+        <p className="text-[1.25em] font-medium text-charcoal">Hourglass</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Hero() {
   return (
     <section
       id="home"
       aria-labelledby="hero-title"
-      className="relative overflow-hidden bg-[radial-gradient(ellipse_at_70%_20%,#fdfbf8_0%,#f8f5f0_45%,#efe8de_100%)] pt-28 pb-20 sm:pt-32 lg:pt-36 lg:pb-28"
+      className="relative overflow-hidden bg-[linear-gradient(100deg,#f6f1eb_0%,#f2eae2_55%,#ede4db_100%)] pt-32 sm:pt-36 lg:pt-32"
     >
       <div className="container-x grid items-center gap-14 lg:grid-cols-12 lg:gap-8">
         {/* Copy */}
-        <div className="lg:col-span-6">
+        <div className="lg:col-span-6 lg:self-center lg:pb-16">
           <p className="eyebrow">Personal Fashion Consulting</p>
           <h1
             id="hero-title"
@@ -89,68 +116,69 @@ export default function Hero() {
           </ul>
         </div>
 
-        {/* Visual: arched photograph with floating detail cards */}
-        <div className="relative mx-auto w-full max-w-[34rem] lg:col-span-6 lg:max-w-none">
-          <div className="relative mr-[22%] ml-[6%] sm:mr-[26%] lg:mr-[24%] lg:ml-[10%]">
-            {/* Thin outline arc and sparkle */}
-            <div aria-hidden className="absolute -top-6 -left-8 h-[70%] w-[90%] rounded-t-full border-t border-l border-taupe/70" />
-            <svg aria-hidden viewBox="0 0 24 24" className="absolute top-[9%] -left-3 h-7 w-7 text-chocolate/80">
-              <path fill="currentColor" d="M12 0c.6 6.4 5.6 11.4 12 12-6.4.6-11.4 5.6-12 12-.6-6.4-5.6-11.4-12-12C6.4 11.4 11.4 6.4 12 0Z" />
-            </svg>
-
-            <Photo
-              name="hero"
-              alt="An elegant woman in an embroidered ivory outfit, photographed in soft natural light"
-              className="aspect-[5/7] w-full rounded-t-full bg-[#e6dccf]"
-              sizes="(min-width: 1024px) 26rem, 70vw"
+        {/* Visual: the portrait composition, with readable detail cards laid over it */}
+        <div className="relative -mx-5 sm:mx-0 lg:col-span-6 lg:-mr-12 lg:self-end xl:-mr-24">
+          {/* Phones: narrower crop with one card */}
+          <div className="relative mx-auto max-w-[30rem] md:hidden">
+            <Image
+              src={heroNarrow}
+              alt="An elegant woman in an embroidered ivory outfit, seated in soft natural light"
+              sizes="(min-width: 480px) 30rem, 100vw"
+              placeholder="blur"
               preload
+              className="h-auto w-full"
+              style={fade}
             />
+            <Reveal delay={0.2} className="absolute right-4 bottom-[7%] w-[56%] max-w-[15rem]">
+              <BodyCard className="p-3.5 text-sm" />
+            </Reveal>
           </div>
 
-          {/* Detail cards (illustrative, hidden from screen readers) */}
-          <div aria-hidden className="pointer-events-none">
-            <Reveal delay={0.2} className="absolute top-[8%] right-0 w-[48%] max-w-[15.5rem]">
-              <div className={`${card} flex items-center gap-3 rounded-2xl p-4`}>
-                <Silhouette />
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center justify-between gap-2 text-sm font-medium text-charcoal">
-                    Body Analysis <CircleCheck size={18} strokeWidth={1.5} className="shrink-0 text-chocolate" />
-                  </p>
-                  <div className="my-3 h-px bg-beige" />
-                  <p className="text-sm text-muted">Your Shape</p>
-                  <p className="text-lg font-medium text-charcoal">Hourglass</p>
-                </div>
-              </div>
-            </Reveal>
+          {/* Tablet and desktop: full composition. Sizes use container units so cards scale with the image. */}
+          <div className="relative hidden [container-type:inline-size] md:block">
+            <Image
+              src={heroWide}
+              alt="An elegant woman in an embroidered ivory outfit, seated in soft natural light"
+              sizes="(min-width: 1280px) 44rem, (min-width: 1024px) 55vw, 100vw"
+              placeholder="blur"
+              preload
+              className="h-auto w-full"
+              style={fade}
+            />
+            <div aria-hidden className="pointer-events-none text-[1.9cqw] leading-snug whitespace-nowrap">
+              <Reveal delay={0.2} className="absolute top-[12.5cqw] left-[63cqw] w-[35cqw]">
+                <BodyCard className="min-h-[19.1cqw] p-[1.9cqw]" />
+              </Reveal>
 
-            <Reveal delay={0.35} className="absolute top-[37%] right-[-2%] hidden w-[58%] max-w-[19rem] sm:block lg:right-[-4%]">
-              <div className={`${card} rounded-2xl p-4`}>
-                <p className="text-sm font-medium text-charcoal sm:text-base">Curated For You</p>
-                <div className="mt-3 flex items-center gap-2">
-                  {looks.map((l) => (
-                    <Photo
-                      key={l.name}
-                      name={l.name}
-                      alt=""
-                      className="aspect-[4/5] flex-1 rounded-lg"
-                      sizes="80px"
-                      fallback={<div className="h-full w-full" style={{ background: l.tone }} />}
-                    />
+              <Reveal delay={0.35} className="absolute top-[37.2cqw] left-[59.9cqw] w-[38cqw]">
+                <div className={`${card} min-h-[19.2cqw] rounded-[1.6cqw] p-[1.9cqw]`}>
+                  <p className="text-[1.05em] font-medium text-charcoal">Curated For You</p>
+                  <div className="mt-[1.3cqw] flex items-center gap-[0.9cqw]">
+                    {looks.map((l) => (
+                      <Photo
+                        key={l.name}
+                        name={l.name}
+                        alt=""
+                        className="aspect-[4/5] flex-1 rounded-[0.8cqw]"
+                        sizes="120px"
+                        fallback={<div className="h-full w-full" style={{ background: l.tone }} />}
+                      />
+                    ))}
+                    <CircleArrowRight strokeWidth={1.25} className="ml-[0.4cqw] h-[2.8cqw] w-[2.8cqw] shrink-0 text-chocolate" />
+                  </div>
+                </div>
+              </Reveal>
+
+              <Reveal delay={0.5} className="absolute top-[58.6cqw] left-[63cqw] w-[35cqw]">
+                <ul className={`${card} flex min-h-[16.8cqw] flex-col justify-center gap-[1.2cqw] rounded-[1.6cqw] p-[1.9cqw] text-charcoal`}>
+                  {["Flatter Your Proportions", "Style Recommendations", "Complete Outfit Guidance"].map((t) => (
+                    <li key={t} className="flex items-center gap-[1cqw]">
+                      <CircleCheck strokeWidth={1.5} className="h-[2cqw] w-[2cqw] shrink-0 text-chocolate" /> {t}
+                    </li>
                   ))}
-                  <CircleArrowRight size={26} strokeWidth={1.25} className="ml-1 shrink-0 text-chocolate" />
-                </div>
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.5} className="absolute right-0 bottom-[2%] hidden w-[52%] max-w-[17rem] sm:block">
-              <ul className={`${card} space-y-3 rounded-2xl p-5 text-sm text-charcoal`}>
-                {["Flatter Your Proportions", "Style Recommendations", "Complete Outfit Guidance"].map((t) => (
-                  <li key={t} className="flex items-center gap-3">
-                    <CircleCheck size={18} strokeWidth={1.5} className="shrink-0 text-chocolate" /> {t}
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
+                </ul>
+              </Reveal>
+            </div>
           </div>
         </div>
       </div>

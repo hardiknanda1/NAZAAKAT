@@ -3,7 +3,7 @@ import { findPublicFile } from "@/lib/media";
 
 // Renders the supplied brand logo from /public (logo.svg, logo.png or logo.webp).
 // Until the file is added, a plain text name is shown — it is a placeholder, not a logo.
-export default function Logo({ className = "h-11 w-40", tone = "dark" }: { className?: string; tone?: "dark" | "light" }) {
+export default function Logo({ className = "h-16 w-28 sm:h-[5.25rem]", tone = "dark" }: { className?: string; tone?: "dark" | "light" }) {
   const src = findPublicFile("logo.svg", "logo.png", "logo.webp");
 
   if (src) {

@@ -26,14 +26,13 @@ npm run build && npm start   # production build
 
 ## Brand assets (required before launch)
 
-No logo or photographs were included in the repository, so the site shows placeholders until they are added. Add files and rebuild — no code changes needed:
+The supplied logo is in `public/logo.png` (favicons generated from it in `app/icon.png` and `app/apple-icon.png`). The hero portrait comes from the supplied design mockup. Other photographs show placeholders until added — drop files in and rebuild:
 
 | File | Used for |
 | --- | --- |
-| `public/logo.svg` (or `.png` / `.webp`) | Header, footer, consultation page. Until then the name is shown in plain text. |
-| `app/icon.png` (square, ≥ 512px) | Favicon — export from the supplied logo. |
+| `public/logo.png` | Brand logo (header, footer, consultation page). Replace to update everywhere. |
 | `app/opengraph-image.jpg` (1200×630) | Social share image (optional). |
-| `public/images/hero.jpg` | Hero portrait, shown in an arch (portrait 5:7, ~1200px wide, face in the upper third, plain background, no text or graphics in the image). |
+| `public/images/hero-wide.webp`, `hero-narrow.webp` | Hero portrait (tablet/desktop and phone crops). The desktop detail cards are positioned over this exact composition; if you replace it with a different photo, adjust the card positions in `components/Hero.tsx`. A higher-resolution original will look sharper on retina screens. |
 | `public/images/look-1.jpg` … `look-3.jpg` | Three small outfit thumbnails in the hero "Curated For You" card (4:5). Fabric-tone swatches show until added. |
 | `public/images/services.jpg` | Services section (4:5, desktop only). |
 | `public/images/about.jpg` | About section (4:5). |

@@ -16,7 +16,7 @@
 html {
   scroll-behavior: smooth;
   /* Keeps anchored sections clear of the fixed header. */
-  scroll-padding-top: 5.5rem;
+  scroll-padding-top: 6.5rem;
   -webkit-text-size-adjust: 100%;
 }
 
