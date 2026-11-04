@@ -41,13 +41,19 @@ export default function JitsiRoom({ room }: { room: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ room, host }),
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.status === 404 ? "room" : "setup"))))
       .then(async (data: Session) => {
-        await loadScript(data.scriptUrl);
+        await loadScript(data.scriptUrl).catch(() => Promise.reject(new Error("script")));
         if (!cancelled) setSession(data);
       })
-      .catch(() => {
-        if (!cancelled) setError("The video service could not be reached. Please check your internet connection and refresh.");
+      .catch((err: Error) => {
+        if (cancelled) return;
+        const messages: Record<string, string> = {
+          room: "This consultation link is not valid. Please use the exact link we sent you.",
+          setup: "The video service is not set up correctly yet. Please let us know on WhatsApp. (Error: video settings)",
+          script: "The video service could not be loaded. Please check your internet connection and refresh. (Error: video script)",
+        };
+        setError(messages[err.message] || "The video service could not be reached. Please check your internet connection and refresh.");
       });
     return () => {
       cancelled = true;
