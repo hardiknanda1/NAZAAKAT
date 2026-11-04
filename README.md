@@ -33,7 +33,8 @@ No logo or photographs were included in the repository, so the site shows placeh
 | `public/logo.svg` (or `.png` / `.webp`) | Header, footer, consultation page. Until then the name is shown in plain text. |
 | `app/icon.png` (square, ≥ 512px) | Favicon — export from the supplied logo. |
 | `app/opengraph-image.jpg` (1200×630) | Social share image (optional). |
-| `public/images/hero.jpg` | Hero photograph (portrait, 4:5, ~1600px wide). |
+| `public/images/hero.jpg` | Hero portrait, shown in an arch (portrait 5:7, ~1200px wide, face in the upper third, plain background, no text or graphics in the image). |
+| `public/images/look-1.jpg` … `look-3.jpg` | Three small outfit thumbnails in the hero "Curated For You" card (4:5). Fabric-tone swatches show until added. |
 | `public/images/services.jpg` | Services section (4:5, desktop only). |
 | `public/images/about.jpg` | About section (4:5). |
 
