@@ -1,4 +1,4 @@
-import { createHmac, createSign, timingSafeEqual } from "node:crypto";
+import { createHmac, createPrivateKey, createSign, timingSafeEqual } from "node:crypto";
 
 // Room names look like "nazaakat-<12 hex id><12 hex signature>". The signature is
 // derived from MEETING_ROOM_SECRET, so the server can tell a real booking's room
@@ -44,17 +44,34 @@ export function consultationLinks(siteUrl: string, room: string) {
 
 // ---- Jitsi as a Service (8x8 JaaS) ----
 
+const env = (name: string) => (process.env[name] || "").trim();
+
 export function jaasConfigured() {
-  return Boolean(process.env.JAAS_APP_ID && process.env.JAAS_KEY_ID && process.env.JAAS_PRIVATE_KEY);
+  return Boolean(env("JAAS_APP_ID") && env("JAAS_KEY_ID") && env("JAAS_PRIVATE_KEY"));
+}
+
+export const jaasAppId = () => env("JAAS_APP_ID");
+
+/**
+ * Rebuilds the private key in proper PEM form. Pasting into Vercel often turns the
+ * line breaks into spaces or "\n", which would make signing fail.
+ */
+export function jaasPrivateKey() {
+  const raw = env("JAAS_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const match = raw.match(/-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END \1-----/);
+  const label = match ? match[1] : "PRIVATE KEY";
+  const body = (match ? match[2] : raw).replace(/\s+/g, "");
+  const lines = body.match(/.{1,64}/g) || [];
+  return createPrivateKey(`-----BEGIN ${label}-----\n${lines.join("\n")}\n-----END ${label}-----\n`);
 }
 
 const b64url = (input: string | Buffer) => Buffer.from(input).toString("base64url");
 
 /** Short-lived RS256 token that lets one person into one JaaS room. */
 export function jaasToken(room: string, moderator: boolean) {
-  const appId = process.env.JAAS_APP_ID!;
-  const keyId = process.env.JAAS_KEY_ID!;
-  const privateKey = process.env.JAAS_PRIVATE_KEY!.replace(/\\n/g, "\n");
+  const appId = jaasAppId();
+  const keyId = env("JAAS_KEY_ID");
+  const privateKey = jaasPrivateKey();
   const now = Math.floor(Date.now() / 1000);
 
   const header = { alg: "RS256", typ: "JWT", kid: keyId.startsWith(appId) ? keyId : `${appId}/${keyId}` };
