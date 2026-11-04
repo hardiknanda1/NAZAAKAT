@@ -1,19 +1,40 @@
 import type { Metadata } from "next";
 import { MessageCircle } from "lucide-react";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import Logo from "@/components/Logo";
 import { formatWhen, upcomingBookings } from "@/lib/calendly";
+import { isSignedIn, signOut } from "./actions";
 import CopyButton from "./CopyButton";
+import PasswordForm from "./PasswordForm";
 
 export const metadata: Metadata = {
   title: "Bookings | NAZAAKAT",
   robots: { index: false, follow: false },
 };
 
-// Private page (password-protected in proxy.ts): upcoming bookings with their meeting links.
+// Private page: asks for ADMIN_PASSWORD, then lists upcoming bookings with their meeting links.
+async function Gate() {
+  if (!(await isSignedIn())) {
+    return (
+      <>
+        <p className="mb-6 text-lg text-muted">Enter the password to see bookings.</p>
+        <PasswordForm />
+      </>
+    );
+  }
+  return (
+    <>
+      <Bookings />
+      <form action={signOut} className="mt-10">
+        <button type="submit" className="text-base text-muted underline underline-offset-4 hover:text-chocolate">
+          Sign out on this device
+        </button>
+      </form>
+    </>
+  );
+}
+
 async function Bookings() {
-  await connection(); // always read live bookings at request time, never at build time
   const token = process.env.CALENDLY_API_TOKEN;
   if (!token) {
     return <p className="text-lg text-muted">Add <code>CALENDLY_API_TOKEN</code> in Vercel to see bookings here.</p>;
@@ -76,15 +97,13 @@ export default function AdminPage() {
       </header>
       <main id="main" className="container-x max-w-4xl py-12">
         <h1 className="font-serif text-5xl font-medium text-charcoal">Upcoming consultations</h1>
-        <p className="mt-3 text-lg text-muted">
+        <p className="mt-3 mb-10 text-lg text-muted">
           Tap <strong className="font-medium text-charcoal">Send on WhatsApp</strong> to open a ready-written message to the
           client. Keep the consultant link to yourself — it gives host controls.
         </p>
-        <div className="mt-10">
-          <Suspense fallback={<p className="text-lg text-muted">Loading bookings…</p>}>
-            <Bookings />
-          </Suspense>
-        </div>
+        <Suspense fallback={<p className="text-lg text-muted">Loading…</p>}>
+          <Gate />
+        </Suspense>
       </main>
     </div>
   );

@@ -45,7 +45,7 @@ Automatic WhatsApp messages are optional. The simplest way to send links is the 
 
 1. In Calendly: **Integrations → API and webhooks → Personal access tokens → Generate new token**. Set it as `CALENDLY_API_TOKEN` in Vercel.
 2. Set `ADMIN_PASSWORD` in Vercel (and `MEETING_ROOM_SECRET` if not already set), then redeploy.
-3. Open `https://YOUR-SITE/admin`. The browser asks for a username (type anything) and the password.
+3. Open `https://YOUR-SITE/admin` and enter the password. The device stays signed in for 30 days.
 
 Each upcoming booking shows the client's name, time and WhatsApp number with:
 
