@@ -39,6 +39,22 @@ The supplied logo is in `public/logo.png` (favicons generated from it in `app/ic
 
 Use licensed photography. Images are optimised and lazy-loaded automatically by `next/image`; the hero is preloaded.
 
+## Sending meeting links (bookings page)
+
+Automatic WhatsApp messages are optional. The simplest way to send links is the private **bookings page** at `/admin`:
+
+1. In Calendly: **Integrations → API and webhooks → Personal access tokens → Generate new token**. Set it as `CALENDLY_API_TOKEN` in Vercel.
+2. Set `ADMIN_PASSWORD` in Vercel (and `MEETING_ROOM_SECRET` if not already set), then redeploy.
+3. Open `https://YOUR-SITE/admin`. The browser asks for a username (type anything) and the password.
+
+Each upcoming booking shows the client's name, time and WhatsApp number with:
+
+- **Send on WhatsApp** — opens WhatsApp with a ready-written message and the client's private video link.
+- **Copy message** / **Copy customer link** — to paste anywhere.
+- **Join as consultant** — opens the call with host controls. Never send this link to clients.
+
+Links are the same ones the webhook would send, so both methods can be used together. This works on Calendly's free plan (no webhook needed).
+
 ## Calendly
 
 1. Create an event type (e.g. "Style Consultation", 45 min).
@@ -130,6 +146,7 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `JITSI_DOMAIN` | Optional | Jitsi server when JaaS isn't set (default `meet.jit.si`, testing only) |
 | `CALENDLY_WEBHOOK_SIGNING_KEY` | For webhook | Verifies Calendly requests |
 | `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |
+| `ADMIN_PASSWORD`, `CALENDLY_API_TOKEN` | For /admin | Private bookings page with links to send |
 | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME` | For WhatsApp | Sending meeting links |
 | `WHATSAPP_TEMPLATE_LANGUAGE`, `WHATSAPP_API_VERSION` | Optional | Defaults `en`, `v23.0` |
 | `CONSULTANT_WHATSAPP_NUMBER`, `WHATSAPP_CONSULTANT_TEMPLATE_NAME` | Optional | Consultant copy of each link |
