@@ -8,8 +8,8 @@ export default function About() {
         <Reveal className="lg:col-span-5">
           <Photo
             name="about"
-            alt="A woman smiling confidently in an outfit that suits her"
-            className="aspect-[4/5] w-full"
+            alt="A woman in an ivory embroidered outfit and statement earrings, looking confidently at the camera"
+            className="aspect-[4/5] w-full rounded-t-full"
             sizes="(min-width: 1024px) 40vw, 100vw"
           />
         </Reveal>
