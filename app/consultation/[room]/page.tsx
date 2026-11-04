@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Logo from "@/components/Logo";
-import { ROOM_PATTERN } from "@/lib/meeting";
+import { isValidRoom } from "@/lib/meeting";
 import JitsiRoom from "./JitsiRoom";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 async function Room({ params }: { params: PageProps<"/consultation/[room]">["params"] }) {
   const { room } = await params;
-  if (!ROOM_PATTERN.test(room)) notFound();
+  if (!isValidRoom(room)) notFound();
   return <JitsiRoom room={room} />;
 }
 

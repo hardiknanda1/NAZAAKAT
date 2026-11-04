@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { consultationLinks, roomForBooking } from "@/lib/meeting";
 import { site } from "@/lib/site";
 import { normalisePhone, sendTemplate, whatsappConfigured } from "@/lib/whatsapp";
 
@@ -28,10 +29,6 @@ function verifySignature(header: string | null, body: string, key: string) {
   const a = Buffer.from(expected);
   const b = Buffer.from(parts.v1);
   return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function roomFor(inviteeUri: string, secret: string) {
-  return `nazaakat-${createHmac("sha256", secret).update(inviteeUri).digest("hex").slice(0, 24)}`;
 }
 
 function formatTime(iso: string | undefined, timeZone: string) {
@@ -71,10 +68,14 @@ export async function POST(request: Request) {
   const invitee = data.payload ?? {};
   if (!invitee.uri) return Response.json({ error: "Missing invitee" }, { status: 400 });
 
-  const room = roomFor(invitee.uri, roomSecret);
-  const meetingLink = `${site.url.replace(/\/$/, "")}/consultation/${room}`;
+  const room = roomForBooking(invitee.uri);
+  const links = consultationLinks(site.url, room);
   const when = formatTime(invitee.scheduled_event?.start_time, invitee.timezone || "Asia/Kolkata");
   const name = invitee.name?.trim() || "there";
+
+  // Logs are private to the site owner. This lets the consultant find the host link
+  // in Vercel's logs even before WhatsApp is set up.
+  console.log(`[calendly] Booking for ${name} on ${when}. Consultant link: ${links.consultant}`);
 
   const whatsappAnswer = invitee.questions_and_answers?.find((qa) => /whats\s?app|mobile|phone/i.test(qa.question || ""));
   const phone = normalisePhone(whatsappAnswer?.answer) ?? normalisePhone(invitee.text_reminder_number);
@@ -91,19 +92,19 @@ export async function POST(request: Request) {
 
   try {
     // Template body parameters: {{1}} name, {{2}} date & time, {{3}} meeting link
-    await sendTemplate(phone, process.env.WHATSAPP_TEMPLATE_NAME, [name, when, meetingLink]);
+    await sendTemplate(phone, process.env.WHATSAPP_TEMPLATE_NAME, [name, when, links.customer]);
   } catch (err) {
     console.error("[calendly] WhatsApp message to customer failed.", err);
     // Non-2xx makes Calendly retry; the room name stays the same on retry.
     return Response.json({ error: "WhatsApp send failed" }, { status: 502 });
   }
 
-  // Optional: also send the link to the consultant.
+  // Optional: also send the consultant their host link.
   const consultant = normalisePhone(process.env.CONSULTANT_WHATSAPP_NUMBER);
   const consultantTemplate = process.env.WHATSAPP_CONSULTANT_TEMPLATE_NAME;
   if (consultant && consultantTemplate) {
     try {
-      await sendTemplate(consultant, consultantTemplate, [name, when, meetingLink]);
+      await sendTemplate(consultant, consultantTemplate, [name, when, links.consultant]);
     } catch (err) {
       console.error("[calendly] WhatsApp message to consultant failed.", err);
     }

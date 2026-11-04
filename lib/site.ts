@@ -9,7 +9,6 @@ export const site = {
   whatsappNumber: (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D/g, ""),
   instagramUrl: process.env.NEXT_PUBLIC_INSTAGRAM_URL || "",
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "",
-  jitsiDomain: process.env.NEXT_PUBLIC_JITSI_DOMAIN || "meet.jit.si",
 };
 
 export const nav = [

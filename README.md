@@ -87,15 +87,34 @@ Until WhatsApp is configured, bookings are accepted and the webhook logs `whatsa
 
 **Prefer Interakt or AiSensy?** Both are WhatsApp Business partners with simpler onboarding in India. Replace the body of `sendTemplate()` in `lib/whatsapp.ts` with their "send template message" API call. Nothing else changes.
 
-## Jitsi
+## Video consultations (Jitsi)
 
-Customers open the link from WhatsApp, enter their name and tap **Join Consultation**. The call opens on the page through the [Jitsi IFrame API](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe), with no account or app needed.
+Customers open the link from WhatsApp, enter their name and tap **Join Consultation** — the call runs inside the page with the [Jitsi IFrame API](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe). No account or app.
 
-- **Development:** `NEXT_PUBLIC_JITSI_DOMAIN=meet.jit.si`. Embedded calls on the public meet.jit.si server are limited to about 5 minutes, and the first participant may be asked to sign in. Use it for testing only.
-- **Production, option A — Jitsi as a Service (8x8 JaaS):** set `NEXT_PUBLIC_JITSI_DOMAIN=8x8.vc` and `NEXT_PUBLIC_JITSI_ROOM_PREFIX=<your vpaas-magic-cookie app ID>`. JaaS normally requires a signed JWT (RS256) to join, so a small server route that signs one with your JaaS private key still needs to be added before launch. Pass it as the `jwt` option in `app/consultation/[room]/JitsiRoom.tsx`.
-- **Production, option B — self-hosted Jitsi:** set `NEXT_PUBLIC_JITSI_DOMAIN` to your server, e.g. `meet.nazaakat.com`. No other changes are needed.
+Each booking gets two links, both signed with `MEETING_ROOM_SECRET` (nothing is stored):
 
-The consultant joins with the same link (sent on WhatsApp if the consultant template is configured).
+- **Customer link** `…/consultation/nazaakat-…` — sent to the customer on WhatsApp.
+- **Consultant link** — the same plus `?host=…`, which gives host (moderator) controls. Sent on WhatsApp if the consultant template is set up, and always written to the Vercel logs (`[calendly] Booking for …`).
+
+Made-up room addresses show "page not found" and never get a video token.
+
+### Production: 8x8 Jitsi as a Service (JaaS)
+
+1. In the [JaaS console](https://jaas.8x8.vc): **API keys → Add API key → Generate API key pair**. Download the private key file and note the **Key ID**.
+2. Copy your **App ID** (`vpaas-magic-cookie-…`) from the console.
+3. In Vercel set `JAAS_APP_ID`, `JAAS_KEY_ID` and `JAAS_PRIVATE_KEY` (paste the whole key file, including the `-----BEGIN` / `-----END` lines), then redeploy.
+
+The server (`app/api/jitsi/session`) then signs a short-lived token for each person: customers join as guests, the consultant link joins as moderator. No sign-in and no 5-minute limit. The free JaaS tier covers a limited number of monthly users — check your plan in the console.
+
+Without JaaS, calls use `JITSI_DOMAIN` (default `meet.jit.si`). The public meet.jit.si is for testing only: embedded calls end after ~5 minutes and someone must sign in as host. A self-hosted Jitsi server with guest access also works — set `JITSI_DOMAIN` to it.
+
+### Make a test call without booking
+
+```bash
+node scripts/consultation-link.mjs YOUR_MEETING_ROOM_SECRET https://YOUR-SITE
+```
+
+It prints a customer link and a consultant link for a fresh test room. Open one on each device.
 
 ## Environment variables
 
@@ -107,9 +126,10 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `NEXT_PUBLIC_CALENDLY_URL` | Yes | Calendly event link |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Recommended | "Chat on WhatsApp" buttons |
 | `NEXT_PUBLIC_INSTAGRAM_URL`, `NEXT_PUBLIC_CONTACT_EMAIL` | Optional | Contact section (placeholders shown when empty) |
-| `NEXT_PUBLIC_JITSI_DOMAIN`, `NEXT_PUBLIC_JITSI_ROOM_PREFIX` | Optional | Video server (default `meet.jit.si`) |
+| `JAAS_APP_ID`, `JAAS_KEY_ID`, `JAAS_PRIVATE_KEY` | For launch | 8x8 JaaS video (no time limit, no host sign-in) |
+| `JITSI_DOMAIN` | Optional | Jitsi server when JaaS isn't set (default `meet.jit.si`, testing only) |
 | `CALENDLY_WEBHOOK_SIGNING_KEY` | For webhook | Verifies Calendly requests |
-| `MEETING_ROOM_SECRET` | For webhook | Derives private room names |
+| `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |
 | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME` | For WhatsApp | Sending meeting links |
 | `WHATSAPP_TEMPLATE_LANGUAGE`, `WHATSAPP_API_VERSION` | Optional | Defaults `en`, `v23.0` |
 | `CONSULTANT_WHATSAPP_NUMBER`, `WHATSAPP_CONSULTANT_TEMPLATE_NAME` | Optional | Consultant copy of each link |

@@ -1,11 +1,10 @@
 "use client";
 
-import Script from "next/script";
 import { Video } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { site } from "@/lib/site";
 
 type JitsiApi = { dispose: () => void; addListener: (event: string, fn: () => void) => void };
+type Session = { domain: string; scriptUrl: string; roomName: string; jwt?: string; moderator: boolean };
 
 declare global {
   interface Window {
@@ -13,32 +12,62 @@ declare global {
   }
 }
 
-// Optional prefix, e.g. a Jitsi-as-a-Service app ID ("vpaas-magic-cookie-…").
-const roomPrefix = process.env.NEXT_PUBLIC_JITSI_ROOM_PREFIX || "";
+function loadScript(src: string) {
+  return new Promise<void>((resolve, reject) => {
+    if (window.JitsiMeetExternalAPI) return resolve();
+    const el = document.createElement("script");
+    el.src = src;
+    el.async = true;
+    el.onload = () => resolve();
+    el.onerror = () => reject(new Error("script"));
+    document.head.appendChild(el);
+  });
+}
 
 export default function JitsiRoom({ room }: { room: string }) {
   const container = useRef<HTMLDivElement>(null);
   const api = useRef<JitsiApi | null>(null);
-  const [scriptReady, setScriptReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
   const [name, setName] = useState("");
   const [stage, setStage] = useState<"welcome" | "call" | "ended">("welcome");
   const [error, setError] = useState("");
 
-  // Clean up the call if the person leaves the page.
-  useEffect(() => () => api.current?.dispose(), []);
+  // Ask the server for this room's settings (and a signed token when using JaaS), then load Jitsi.
+  useEffect(() => {
+    let cancelled = false;
+    const host = new URLSearchParams(window.location.search).get("host");
+    fetch("/api/jitsi/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room, host }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then(async (data: Session) => {
+        await loadScript(data.scriptUrl);
+        if (!cancelled) setSession(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError("The video service could not be reached. Please check your internet connection and refresh.");
+      });
+    return () => {
+      cancelled = true;
+      api.current?.dispose();
+    };
+  }, [room]);
 
   function join() {
-    if (!container.current || !window.JitsiMeetExternalAPI) return;
+    if (!container.current || !session || !window.JitsiMeetExternalAPI) return;
     setError("");
     api.current?.dispose();
     container.current.innerHTML = "";
     try {
-      api.current = new window.JitsiMeetExternalAPI(site.jitsiDomain, {
-        roomName: roomPrefix ? `${roomPrefix}/${room}` : room,
+      api.current = new window.JitsiMeetExternalAPI(session.domain, {
+        roomName: session.roomName,
+        jwt: session.jwt,
         parentNode: container.current,
         width: "100%",
         height: "100%",
-        userInfo: { displayName: name.trim() || "Guest" },
+        userInfo: { displayName: name.trim() || (session.moderator ? "NAZAAKAT Stylist" : "Guest") },
         configOverwrite: {
           subject: "NAZAAKAT Style Consultation",
           prejoinConfig: { enabled: false },
@@ -59,15 +88,10 @@ export default function JitsiRoom({ room }: { room: string }) {
     }
   }
 
+  const scriptReady = Boolean(session);
+
   return (
     <>
-      <Script
-        src={`https://${site.jitsiDomain}/external_api.js`}
-        strategy="afterInteractive"
-        onReady={() => setScriptReady(true)}
-        onError={() => setError("The video service could not be reached. Please check your internet connection and refresh.")}
-      />
-
       <div
         ref={container}
         hidden={stage !== "call"}
