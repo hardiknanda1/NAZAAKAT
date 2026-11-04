@@ -1,9 +1,14 @@
 // Reads upcoming bookings from the Calendly API (works on Calendly's free plan).
 import { consultationLinks, roomForBooking } from "./meeting";
 import { site } from "./site";
-import { normalisePhone } from "./whatsapp";
 
 const API = "https://api.calendly.com";
+
+/** Digits only, including country code (e.g. "+91 98765 43210" → "919876543210"). */
+function normalisePhone(raw: string | null | undefined) {
+  const digits = (raw || "").replace(/\D/g, "").replace(/^00/, "");
+  return digits.length >= 8 && digits.length <= 15 ? digits : null;
+}
 
 type QA = { question?: string; answer?: string };
 type Invitee = {
