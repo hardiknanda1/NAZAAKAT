@@ -40,6 +40,7 @@ export default function JitsiRoom({ room }: { room: string }) {
         height: "100%",
         userInfo: { displayName: name.trim() || "Guest" },
         configOverwrite: {
+          subject: "NAZAAKAT Style Consultation",
           prejoinConfig: { enabled: false },
           disableDeepLinking: true, // keep mobile users in the browser instead of asking for the app
           startWithAudioMuted: false,
@@ -70,7 +71,7 @@ export default function JitsiRoom({ room }: { room: string }) {
       <div
         ref={container}
         hidden={stage !== "call"}
-        className="min-h-[560px] w-full flex-1 bg-charcoal"
+        className="h-[calc(100dvh-6rem)] min-h-[480px] w-full bg-charcoal"
         aria-label="Video consultation"
       />
       {stage !== "call" && (
