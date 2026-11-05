@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { BOOK_HREF } from "@/lib/site";
 import Reveal from "./Reveal";
 
 const steps = [
@@ -44,9 +46,9 @@ export default function HowItWorks() {
         </ol>
 
         <Reveal className="mt-16 lg:mt-20">
-          <a href="#book" className="btn border border-ivory text-lg text-ivory hover:bg-ivory hover:text-chocolate">
+          <Link href={BOOK_HREF} className="btn border border-ivory text-lg text-ivory hover:bg-ivory hover:text-chocolate">
             Book Your Consultation
-          </a>
+          </Link>
         </Reveal>
       </div>
     </section>

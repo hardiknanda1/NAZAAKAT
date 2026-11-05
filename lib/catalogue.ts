@@ -1,6 +1,6 @@
-// Catalogue pages shown beside the video call (direct-consultation site).
-// The folder name is random so the pages can't be found by guessing; search engines are told to skip /c/.
-// To use a new catalogue, replace the images and this list (see README).
+// Default catalogue shown beside the video call when a booking has no catalogue of its own uploaded
+// in /admin yet. The folder name is random so the pages can't be found by guessing; search engines
+// are told to skip /c/.
 export const cataloguePages = [
   {
     "src": "/c/c501c81c063561aa49ee/01.webp",

@@ -9,21 +9,23 @@ export const site = {
   url:
     process.env.NEXT_PUBLIC_SITE_URL ||
     (vercelHost ? `https://${vercelHost}` : "http://localhost:3000"),
-  // Public booking page. Vercel's NEXT_PUBLIC_CALENDLY_URL overrides it.
-  calendlyUrl: process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/mynazaakat",
   // Digits only, with country code, e.g. 9198XXXXXXXX
   whatsappNumber: (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D/g, ""),
   instagramUrl: process.env.NEXT_PUBLIC_INSTAGRAM_URL || "",
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "",
 };
 
+// "About" and "Book" are their own pages; the rest are sections on the home page.
+// Written as "/#section" (not "#section") so they still work when clicked from another page.
 export const nav = [
-  { href: "#home", label: "Home" },
-  { href: "#services", label: "Services" },
-  { href: "#how-it-works", label: "How It Works" },
-  { href: "#about", label: "About" },
-  { href: "#contact", label: "Contact" },
+  { href: "/", label: "Home" },
+  { href: "/#services", label: "Services" },
+  { href: "/#how-it-works", label: "How It Works" },
+  { href: "/about", label: "About" },
+  { href: "/#contact", label: "Contact" },
 ];
+
+export const BOOK_HREF = "/book";
 
 export function whatsappLink(message = "Hello NAZAAKAT, I would like to know more about a style consultation.") {
   if (!site.whatsappNumber) return "";

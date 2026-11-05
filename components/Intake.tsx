@@ -52,7 +52,7 @@ function Chip({ type, name, value, checked, onChange }: { type: "radio" | "check
   );
 }
 
-export default function Intake({ inviteeUri, onDone }: { inviteeUri: string | null; onDone: () => void }) {
+export default function Intake({ bookingId, onDone }: { bookingId: string | null; onDone: () => void }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [name, setName] = useState("");
@@ -92,11 +92,11 @@ export default function Intake({ inviteeUri, onDone }: { inviteeUri: string | nu
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (photos.length === 0) return setError(errors.no_photos);
-    if (!inviteeUri && (!name.trim() || whatsapp.replace(/\D/g, "").length < 8)) return setError(errors.need_contact);
+    if (!bookingId && (!name.trim() || whatsapp.replace(/\D/g, "").length < 8)) return setError(errors.need_contact);
     setBusy(true);
     setError("");
     const body = new FormData();
-    if (inviteeUri) body.set("inviteeUri", inviteeUri);
+    if (bookingId) body.set("bookingId", bookingId);
     body.set("name", name);
     body.set("whatsapp", whatsapp);
     body.set("answers", JSON.stringify(answers));
@@ -158,8 +158,8 @@ export default function Intake({ inviteeUri, onDone }: { inviteeUri: string | nu
         </p>
       </fieldset>
 
-      {/* Contact details, only if Calendly did not tell us which booking this is */}
-      {!inviteeUri && (
+      {/* Contact details, only if we do not already know which booking this is */}
+      {!bookingId && (
         <div className="mt-10 grid gap-5 sm:grid-cols-2">
           <label className="block">
             <span className="text-lg font-medium text-charcoal">Your name</span>

@@ -1,16 +1,17 @@
 "use client";
 
-import { BookOpen, ChevronLeft, ChevronRight, Maximize2, Mic, MicOff, PhoneOff, Video, VideoOff, X } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, Maximize2, Mic, MicOff, PhoneOff, Video, VideoOff, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cataloguePages } from "@/lib/catalogue";
 
 type JitsiApi = {
   dispose: () => void;
   addListener: (event: string, fn: (e: never) => void) => void;
   executeCommand: (command: string, ...args: unknown[]) => void;
 };
-type Session = { domain: string; scriptUrl: string; roomName: string; jwt?: string; moderator: boolean };
+type CataloguePage = { src: string; width: number; height: number };
+type CatalogueData = { type: "images"; pages: CataloguePage[] } | { type: "pdf"; url: string; name: string };
+type Session = { domain: string; scriptUrl: string; roomName: string; jwt?: string; moderator: boolean; catalogue: CatalogueData };
 
 declare global {
   interface Window {
@@ -19,7 +20,6 @@ declare global {
 }
 
 const PAGE_MESSAGE = "nazaakat-page";
-const lastPage = cataloguePages.length - 1;
 
 function loadScript(src: string) {
   return new Promise<void>((resolve, reject) => {
@@ -65,6 +65,25 @@ function RoundButton({
   );
 }
 
+function CatalogueContent({ catalogue, current, alt, full = false }: { catalogue: CatalogueData | null; current?: CataloguePage; alt: string; full?: boolean }) {
+  if (catalogue?.type === "pdf") {
+    return <iframe src={catalogue.url} title={catalogue.name} className="h-full w-full border-0 bg-white" />;
+  }
+  if (current) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- pre-sized catalogue pages, swapped instantly
+      <img
+        src={current.src}
+        width={current.width}
+        height={current.height}
+        alt={alt}
+        className={`h-auto max-h-full w-auto max-w-full object-contain ${full ? "" : "shadow-[0_8px_30px_rgba(0,0,0,0.45)]"}`}
+      />
+    );
+  }
+  return null;
+}
+
 export default function JitsiRoom({ room }: { room: string }) {
   const container = useRef<HTMLDivElement>(null);
   const api = useRef<JitsiApi | null>(null);
@@ -80,8 +99,12 @@ export default function JitsiRoom({ room }: { room: string }) {
   const showRef = useRef(false);
   const pageRef = useRef(0);
   const isHost = Boolean(session?.moderator);
+  const catalogue = session?.catalogue ?? null;
+  const pages = catalogue?.type === "images" ? catalogue.pages : [];
+  const lastPage = pages.length - 1;
 
-  // Ask the server for this room's settings (and a signed token when using JaaS), then load Jitsi.
+  // Ask the server for this room's settings (a signed token when using JaaS, and this booking's
+  // catalogue), then load Jitsi.
   useEffect(() => {
     let cancelled = false;
     const host = new URLSearchParams(window.location.search).get("host");
@@ -134,12 +157,13 @@ export default function JitsiRoom({ room }: { room: string }) {
 
   const goTo = useCallback(
     (p: number) => {
+      if (lastPage < 0) return;
       const next = Math.min(Math.max(p, 0), lastPage);
       pageRef.current = next;
       setPage(next);
       if (isHost) broadcast();
     },
-    [isHost, broadcast],
+    [isHost, broadcast, lastPage],
   );
 
   // Resend the current page every few seconds so a late or reconnecting client catches up.
@@ -149,9 +173,9 @@ export default function JitsiRoom({ room }: { room: string }) {
     return () => clearInterval(timer);
   }, [stage, isHost, broadcast]);
 
-  // Arrow keys turn pages on a laptop.
+  // Arrow keys turn pages on a laptop (images catalogue only).
   useEffect(() => {
-    if (stage !== "call" || !showCatalogue) return;
+    if (stage !== "call" || !showCatalogue || catalogue?.type !== "images") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") goTo(pageRef.current + 1);
       if (e.key === "ArrowLeft") goTo(pageRef.current - 1);
@@ -159,14 +183,17 @@ export default function JitsiRoom({ room }: { room: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [stage, showCatalogue, goTo]);
+  }, [stage, showCatalogue, catalogue?.type, goTo]);
 
   // Preload the neighbouring pages so Next/Prev feel instant.
   useEffect(() => {
+    if (catalogue?.type !== "images") return;
     for (const i of [page - 1, page + 1]) {
-      if (i >= 0 && i <= lastPage) new window.Image().src = cataloguePages[i].src;
+      if (i >= 0 && i <= lastPage) new window.Image().src = pages[i].src;
     }
-  }, [page]);
+    // pages/lastPage are derived from catalogue and change together with it; re-running per page is what matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, catalogue?.type]);
 
   function join() {
     if (!container.current || !session || !window.JitsiMeetExternalAPI) return;
@@ -213,10 +240,12 @@ export default function JitsiRoom({ room }: { room: string }) {
         if (session.moderator) return;
         try {
           const msg = JSON.parse(e?.data?.eventData?.text ?? e?.eventData?.text ?? "");
-          if (msg?.type === PAGE_MESSAGE && Number.isInteger(msg.page)) {
-            const p = Math.min(Math.max(msg.page, 0), lastPage);
-            pageRef.current = p;
-            setPage(p);
+          if (msg?.type === PAGE_MESSAGE) {
+            if (Number.isInteger(msg.page)) {
+              const p = Math.min(Math.max(msg.page, 0), Math.max(lastPage, 0));
+              pageRef.current = p;
+              setPage(p);
+            }
             if (typeof msg.show === "boolean" && msg.show !== showRef.current) applyCatalogue(msg.show);
           }
         } catch {
@@ -238,7 +267,8 @@ export default function JitsiRoom({ room }: { room: string }) {
   }
 
   const scriptReady = Boolean(session);
-  const current = cataloguePages[page];
+  const current = pages[page];
+  const pageAlt = catalogue?.type === "images" ? `Your style catalogue, page ${page + 1} of ${lastPage + 1}` : catalogue?.type === "pdf" ? catalogue.name : "Catalogue";
 
   return (
     <>
@@ -252,54 +282,51 @@ export default function JitsiRoom({ room }: { room: string }) {
           <div className="relative min-h-0 bg-charcoal">
             <div ref={container} className="absolute inset-0" aria-label="Video consultation" />
           </div>
-          <figure hidden={!showCatalogue} className="relative min-h-0 items-center justify-center overflow-hidden p-1.5 sm:p-4 [&:not([hidden])]:flex">
+          <div hidden={!showCatalogue} className="relative min-h-0 items-center justify-center overflow-hidden p-1.5 sm:p-4 [&:not([hidden])]:flex">
+            <CatalogueContent catalogue={catalogue} current={current} alt={pageAlt} />
             <button
               type="button"
               onClick={() => setFullPage(true)}
               aria-label="Open this page full screen"
-              className="relative flex h-full w-full items-center justify-center"
+              className="absolute top-1.5 right-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white sm:top-3 sm:right-3 sm:h-10 sm:w-10"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP pages, swapped instantly */}
-              <img
-                src={current.src}
-                width={current.width}
-                height={current.height}
-                alt={`Your style catalogue, page ${page + 1} of ${lastPage + 1}`}
-                className="h-auto max-h-full w-auto max-w-full object-contain shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-              />
-              <span className="absolute top-1.5 right-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white sm:top-3 sm:right-3 sm:h-10 sm:w-10">
-                <Maximize2 size={16} aria-hidden />
-              </span>
+              <Maximize2 size={16} aria-hidden />
             </button>
-          </figure>
+          </div>
         </div>
 
         {fullPage && showCatalogue && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-[#120709]" role="dialog" aria-modal="true" aria-label="Catalogue page, full screen">
-            <button
-              type="button"
-              onClick={() => setFullPage(false)}
-              className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2"
-              aria-label="Close full screen and go back to the videos"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- same page image, larger */}
-              <img src={current.src} width={current.width} height={current.height} alt={`Your style catalogue, page ${page + 1} of ${lastPage + 1}`} className="h-auto max-h-full w-auto max-w-full object-contain" />
-            </button>
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#120709]" role="dialog" aria-modal="true" aria-label="Catalogue, full screen">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2">
+              <CatalogueContent catalogue={catalogue} current={current} alt={pageAlt} full />
+            </div>
             <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 sm:h-20 sm:px-6">
               <RoundButton label="Back to the videos" onClick={() => setFullPage(false)}>
                 <X size={22} aria-hidden />
               </RoundButton>
-              <div className="flex items-center gap-1.5 sm:gap-3">
-                <RoundButton label="Previous page" disabled={page === 0} onClick={() => goTo(page - 1)}>
-                  <ChevronLeft size={22} aria-hidden />
-                </RoundButton>
-                <p className="min-w-[3.6rem] text-center text-sm font-medium text-white tabular-nums sm:text-base">
-                  {page + 1} / {lastPage + 1}
-                </p>
-                <RoundButton label="Next page" disabled={page === lastPage} onClick={() => goTo(page + 1)}>
-                  <ChevronRight size={22} aria-hidden />
-                </RoundButton>
-              </div>
+              {catalogue?.type === "images" && lastPage >= 0 && (
+                <div className="flex items-center gap-1.5 sm:gap-3">
+                  <RoundButton label="Previous page" disabled={page === 0} onClick={() => goTo(page - 1)}>
+                    <ChevronLeft size={22} aria-hidden />
+                  </RoundButton>
+                  <p className="min-w-[3.6rem] text-center text-sm font-medium text-white tabular-nums sm:text-base">
+                    {page + 1} / {lastPage + 1}
+                  </p>
+                  <RoundButton label="Next page" disabled={page === lastPage} onClick={() => goTo(page + 1)}>
+                    <ChevronRight size={22} aria-hidden />
+                  </RoundButton>
+                </div>
+              )}
+              {catalogue?.type === "pdf" && (
+                <a
+                  href={catalogue.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-white underline underline-offset-4"
+                >
+                  <ExternalLink size={14} aria-hidden /> Open in new tab
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -318,7 +345,7 @@ export default function JitsiRoom({ room }: { room: string }) {
           </div>
 
           <div className="flex items-center gap-1 min-[380px]:gap-1.5 sm:gap-3">
-            {showCatalogue && (
+            {showCatalogue && catalogue?.type === "images" && lastPage >= 0 && (
               <div className="flex items-center gap-1 min-[380px]:gap-1.5 sm:gap-3" aria-label="Catalogue pages">
                 <RoundButton label="Previous page" disabled={page === 0} onClick={() => goTo(page - 1)}>
                   <ChevronLeft size={22} aria-hidden />

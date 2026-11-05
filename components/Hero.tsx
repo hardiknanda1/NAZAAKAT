@@ -1,9 +1,11 @@
 import { ArrowRight, CalendarHeart, CircleCheck } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import heroNarrow from "@/public/images/hero-narrow.webp";
 import heroWide from "@/public/images/hero-wide.webp";
 import Photo from "./Photo";
 import Reveal from "./Reveal";
+import { BOOK_HREF } from "@/lib/site";
 
 // Small line icons in the same stroke style as Lucide.
 function DressFormIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -107,12 +109,12 @@ export default function Hero() {
             fashion guidance designed around <em className="font-serif text-[1.12em] text-chocolate italic">you</em>.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <a href="#book" className="btn-primary text-lg">
+            <Link href={BOOK_HREF} className="btn-primary text-lg">
               Book Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
-            </a>
-            <a href="#services" className="btn-secondary text-lg">
+            </Link>
+            <Link href="/#services" className="btn-secondary text-lg">
               Explore Our Services
-            </a>
+            </Link>
           </div>
 
           <ul className="mt-14 grid max-w-xl grid-cols-3 divide-x divide-taupe/50">

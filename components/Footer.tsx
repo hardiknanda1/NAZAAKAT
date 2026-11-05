@@ -1,5 +1,6 @@
 import { Mail, MessageCircle } from "lucide-react";
-import { nav, site, whatsappLink } from "@/lib/site";
+import Link from "next/link";
+import { BOOK_HREF, nav, site, whatsappLink } from "@/lib/site";
 import Logo from "./Logo";
 import Reveal from "./Reveal";
 
@@ -63,15 +64,15 @@ export default async function Footer() {
             <ul className="grid grid-cols-2 gap-x-6 gap-y-3">
               {nav.map((item) => (
                 <li key={item.href}>
-                  <a href={item.href} className="inline-block py-1 hover:text-chocolate">
+                  <Link href={item.href} className="inline-block py-1 hover:text-chocolate">
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
               <li>
-                <a href="#book" className="inline-block py-1 hover:text-chocolate">
+                <Link href={BOOK_HREF} className="inline-block py-1 hover:text-chocolate">
                   Book Consultation
-                </a>
+                </Link>
               </li>
             </ul>
           </nav>
