@@ -1,6 +1,6 @@
-import { ArrowRight, CircleArrowRight, CircleCheck, Layers } from "lucide-react";
+import { ArrowRight, CircleArrowRight, CircleCheck, CircleChevronRight, Layers } from "lucide-react";
 import Image from "next/image";
-import heroNarrow from "@/public/images/hero-narrow.webp";
+import heroMobile from "@/public/images/hero-mobile.webp";
 import heroWide from "@/public/images/hero-wide.webp";
 import Photo from "./Photo";
 import Reveal from "./Reveal";
@@ -70,6 +70,13 @@ function fade(right: boolean): React.CSSProperties {
   };
 }
 
+const mobileFade: React.CSSProperties = {
+  maskImage: "linear-gradient(to right, transparent, #000 6%, #000 94%, transparent), linear-gradient(to bottom, transparent, #000 4%, #000 72%, transparent 98%)",
+  WebkitMaskImage: "linear-gradient(to right, transparent, #000 6%, #000 94%, transparent), linear-gradient(to bottom, transparent, #000 4%, #000 72%, transparent 98%)",
+  maskComposite: "intersect",
+  WebkitMaskComposite: "source-in",
+};
+
 function BodyCard({ className = "" }: { className?: string }) {
   return (
     <div className={`${card} flex items-center gap-[0.9em] rounded-2xl ${className}`}>
@@ -95,13 +102,13 @@ export default function Hero() {
       aria-labelledby="hero-title"
       className="relative overflow-hidden bg-[linear-gradient(to_bottom,transparent_60%,#f1ebe3),linear-gradient(100deg,#f6f1eb_0%,#f2eae2_55%,#ede4db_100%)] lg:flex lg:min-h-[max(100svh,calc(var(--hero-w)*0.805+6rem))] lg:items-center lg:[--hero-w:min(50vw,calc((100svh-6rem)/0.805))] xl:[--hero-w:min(58vw,calc((100svh-6rem)/0.805),68rem)]"
     >
-      <div className="container-x relative z-10 pt-32 sm:pt-36 lg:pt-28 lg:pb-16">
+      <div className="container-x relative z-10 pt-28 sm:pt-36 lg:pt-28 lg:pb-16">
         {/* Copy */}
         <div className="lg:max-w-[44vw] xl:max-w-[min(42vw,40rem)]">
           <p className="eyebrow">Personal Fashion Consulting</p>
           <h1
             id="hero-title"
-            className="mt-6 font-serif text-[2.9rem] leading-[1.05] font-medium text-charcoal sm:text-6xl lg:text-[4.1rem] xl:text-[4.6rem]"
+            className="mt-6 font-serif text-[2.4rem] leading-[1.08] min-[400px]:text-[2.6rem] font-medium text-charcoal sm:text-6xl lg:text-[4.1rem] xl:text-[4.6rem]"
           >
             Style is personal.
             <span className="mt-1 block text-chocolate italic">Let us make it yours.</span>
@@ -111,15 +118,15 @@ export default function Hero() {
             fashion guidance designed around <strong className="font-medium text-charcoal">you</strong>.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <a href="/start" className="btn-primary text-lg">
+            <a href="/start" className="btn-primary rounded-lg text-lg md:rounded-none">
               Start Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
             </a>
-            <a href="#services" className="btn-secondary text-lg">
+            <a href="#services" className="btn-secondary rounded-lg text-lg md:rounded-none">
               Explore Our Services
             </a>
           </div>
 
-          <ul className="mt-14 grid max-w-xl grid-cols-3 divide-x divide-taupe/50">
+          <ul className="mt-14 hidden max-w-xl grid-cols-3 divide-x divide-taupe/50 md:grid">
             {features.map(({ label, Icon }) => (
               <li key={label} className="flex flex-col items-center gap-3 px-2 text-center">
                 <Icon className="h-9 w-9 text-chocolate" aria-hidden />
@@ -130,12 +137,52 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Phones: narrower crop with one card */}
-      <div className="relative mx-auto mt-10 max-w-[32rem] md:hidden">
-        <Image src={heroNarrow} alt={alt} sizes="(min-width: 512px) 32rem, 100vw" placeholder="blur" preload className="h-auto w-full" style={fade(true)} />
-        <Reveal delay={0.2} className="absolute right-4 bottom-[12%] w-[56%] max-w-[15rem]">
-          <BodyCard className="p-3.5 text-sm" />
-        </Reveal>
+      {/* Phones: full arch photo, three cards overlapping its lower edge, then the feature row */}
+      <div className="md:hidden">
+        <div className="relative mx-auto mt-8 max-w-[32rem]">
+          <Image src={heroMobile} alt={alt} sizes="(min-width: 512px) 32rem, 100vw" placeholder="blur" preload className="h-auto w-full" style={mobileFade} />
+        </div>
+        <div aria-hidden className="relative z-10 mx-auto -mt-[30vw] grid max-w-[32rem] grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)_minmax(0,1.12fr)] gap-1.5 px-2 text-[0.64rem] leading-snug min-[380px]:text-[0.68rem] min-[400px]:text-[0.72rem] min-[440px]:text-[0.8rem]">
+          <Reveal delay={0.1} className="h-full">
+            <div className={`${card} flex h-full flex-col rounded-xl p-2 min-[380px]:p-2.5`}>
+              <p className="flex items-center justify-between gap-1 font-medium text-charcoal min-[360px]:whitespace-nowrap">
+                Body Analysis <CircleChevronRight strokeWidth={1.25} className="h-[1.25em] w-[1.25em] shrink-0 text-chocolate" />
+              </p>
+              <div className="my-2 h-px bg-beige" />
+              <p className="text-muted">Your Shape:</p>
+              <p className="text-[1.3em] font-medium text-charcoal">Hourglass</p>
+            </div>
+          </Reveal>
+          <Reveal delay={0.2} className="h-full">
+            <div className={`${card} flex h-full flex-col rounded-xl p-2 min-[380px]:p-2.5`}>
+              <p className="flex items-center justify-between gap-1 font-medium text-charcoal min-[360px]:whitespace-nowrap">
+                Curated For You <CircleChevronRight strokeWidth={1.25} className="h-[1.25em] w-[1.25em] shrink-0 text-chocolate" />
+              </p>
+              <div className="mt-2 flex gap-1">
+                {looks.map((l) => (
+                  <Photo key={l.name} name={l.name} alt="" className="aspect-[4/5] flex-1 rounded-md" sizes="60px" />
+                ))}
+              </div>
+            </div>
+          </Reveal>
+          <Reveal delay={0.3} className="h-full">
+            <ul className={`${card} flex h-full flex-col justify-center gap-1.5 rounded-xl p-2 text-charcoal min-[380px]:p-2.5`}>
+              {["Flatter Your Proportions", "Style Recommendations", "Complete Outfit Guidance"].map((t) => (
+                <li key={t} className="flex items-start gap-1 text-[0.88em] [overflow-wrap:anywhere]">
+                  <CircleCheck strokeWidth={1.5} className="mt-px h-[1.1em] w-[1.1em] shrink-0 text-chocolate" /> {t}
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        </div>
+        <ul className="container-x mt-8 grid grid-cols-3 divide-x divide-taupe/50 pb-12">
+          {features.map(({ label, Icon }) => (
+            <li key={label} className="flex flex-col items-center gap-2.5 px-1 text-center">
+              <Icon className="h-8 w-8 text-chocolate" aria-hidden />
+              <span className="text-[0.92rem] leading-snug font-medium text-charcoal">{label}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Tablet: in flow. Desktop: bleeds to the right edge of the screen and sits on the section's bottom edge.
