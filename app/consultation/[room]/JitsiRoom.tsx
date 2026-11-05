@@ -101,7 +101,7 @@ export default function JitsiRoom({ room }: { room: string }) {
       <div
         ref={container}
         hidden={stage !== "call"}
-        className="h-[calc(100dvh-6rem)] min-h-[480px] w-full bg-charcoal"
+        className="h-[calc(100dvh-4rem)] min-h-[480px] w-full bg-charcoal sm:h-[calc(100dvh-6rem)]"
         aria-label="Video consultation"
       />
       {stage !== "call" && (

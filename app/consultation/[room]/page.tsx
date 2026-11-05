@@ -21,10 +21,13 @@ export default function ConsultationPage({ params }: PageProps<"/consultation/[r
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-beige">
-        <div className="container-x flex h-24 items-center">
-          <Link href="/" aria-label="NAZAAKAT home">
+        <div className="container-x flex h-16 items-center gap-3 sm:h-24 sm:gap-6">
+          <Link href="/" aria-label="NAZAAKAT home" className="shrink-0">
             <Logo />
           </Link>
+          <p className="border-l border-taupe/60 pl-3 font-serif text-[1.15rem] leading-tight text-chocolate italic min-[400px]:text-[1.3rem] sm:pl-6 sm:text-3xl lg:text-4xl">
+            Discover the art of your style
+          </p>
         </div>
       </header>
       <main id="main" className="flex flex-1 flex-col">
