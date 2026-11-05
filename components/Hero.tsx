@@ -112,9 +112,9 @@ export default function Hero() {
             <Link href={BOOK_HREF} className="btn-primary text-lg">
               Book Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
             </Link>
-            <a href="/#services" className="btn-secondary text-lg">
+            <Link href="/#services" className="btn-secondary text-lg">
               Explore Our Services
-            </a>
+            </Link>
           </div>
 
           <ul className="mt-14 grid max-w-xl grid-cols-3 divide-x divide-taupe/50">

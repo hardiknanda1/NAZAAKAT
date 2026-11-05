@@ -14,9 +14,9 @@ function safeEqual(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-/** Room for a Calendly booking. The same booking always gets the same room. */
-export function roomForBooking(inviteeUri: string) {
-  const id = hmac(`booking:${inviteeUri}`).slice(0, 12);
+/** Room for one of our own bookings (by its id). The same booking always gets the same room. */
+export function roomForBooking(bookingId: string) {
+  const id = hmac(`booking:${bookingId}`).slice(0, 12);
   return `nazaakat-${id}${hmac(`room:${id}`).slice(0, 12)}`;
 }
 
