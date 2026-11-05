@@ -1,9 +1,14 @@
 "use client";
 
-import { Video } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Maximize2, Mic, MicOff, PhoneOff, Video, VideoOff, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cataloguePages } from "@/lib/catalogue";
 
-type JitsiApi = { dispose: () => void; addListener: (event: string, fn: () => void) => void };
+type JitsiApi = {
+  dispose: () => void;
+  addListener: (event: string, fn: (e: never) => void) => void;
+  executeCommand: (command: string, ...args: unknown[]) => void;
+};
 type Session = { domain: string; scriptUrl: string; roomName: string; jwt?: string; moderator: boolean };
 
 declare global {
@@ -11,6 +16,9 @@ declare global {
     JitsiMeetExternalAPI?: new (domain: string, options: Record<string, unknown>) => JitsiApi;
   }
 }
+
+const PAGE_MESSAGE = "nazaakat-page";
+const lastPage = cataloguePages.length - 1;
 
 function loadScript(src: string) {
   return new Promise<void>((resolve, reject) => {
@@ -24,6 +32,38 @@ function loadScript(src: string) {
   });
 }
 
+function RoundButton({
+  label,
+  onClick,
+  children,
+  danger = false,
+  pressed,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  danger?: boolean;
+  pressed?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed}
+      disabled={disabled}
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-35 sm:h-12 sm:w-12 ${
+        danger ? "bg-[#a3182c] text-white hover:bg-[#7d1222]" : "bg-white/10 text-white hover:bg-white/20"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function JitsiRoom({ room }: { room: string }) {
   const container = useRef<HTMLDivElement>(null);
   const api = useRef<JitsiApi | null>(null);
@@ -31,6 +71,12 @@ export default function JitsiRoom({ room }: { room: string }) {
   const [name, setName] = useState("");
   const [stage, setStage] = useState<"welcome" | "call" | "ended">("welcome");
   const [error, setError] = useState("");
+  const [page, setPage] = useState(0);
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
+  const [fullPage, setFullPage] = useState(false);
+  const pageRef = useRef(0);
+  const isHost = Boolean(session?.moderator);
 
   // Ask the server for this room's settings (and a signed token when using JaaS), then load Jitsi.
   useEffect(() => {
@@ -61,13 +107,54 @@ export default function JitsiRoom({ room }: { room: string }) {
     };
   }, [room]);
 
+  // The consultant's page is sent to everyone in the call through Jitsi's data channel.
+  const broadcast = useCallback((p: number) => {
+    api.current?.executeCommand("sendEndpointTextMessage", "", JSON.stringify({ type: PAGE_MESSAGE, page: p }));
+  }, []);
+
+  const goTo = useCallback(
+    (p: number) => {
+      const next = Math.min(Math.max(p, 0), lastPage);
+      pageRef.current = next;
+      setPage(next);
+      if (isHost) broadcast(next);
+    },
+    [isHost, broadcast],
+  );
+
+  // Resend the current page every few seconds so a late or reconnecting client catches up.
+  useEffect(() => {
+    if (stage !== "call" || !isHost) return;
+    const timer = setInterval(() => broadcast(pageRef.current), 4000);
+    return () => clearInterval(timer);
+  }, [stage, isHost, broadcast]);
+
+  // Arrow keys turn pages on a laptop.
+  useEffect(() => {
+    if (stage !== "call") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") goTo(pageRef.current + 1);
+      if (e.key === "ArrowLeft") goTo(pageRef.current - 1);
+      if (e.key === "Escape") setFullPage(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stage, goTo]);
+
+  // Preload the neighbouring pages so Next/Prev feel instant.
+  useEffect(() => {
+    for (const i of [page - 1, page + 1]) {
+      if (i >= 0 && i <= lastPage) new window.Image().src = cataloguePages[i].src;
+    }
+  }, [page]);
+
   function join() {
     if (!container.current || !session || !window.JitsiMeetExternalAPI) return;
     setError("");
     api.current?.dispose();
     container.current.innerHTML = "";
     try {
-      api.current = new window.JitsiMeetExternalAPI(session.domain, {
+      const jitsi = new window.JitsiMeetExternalAPI(session.domain, {
         roomName: session.roomName,
         jwt: session.jwt,
         parentNode: container.current,
@@ -80,10 +167,45 @@ export default function JitsiRoom({ room }: { room: string }) {
           disableDeepLinking: true, // keep mobile users in the browser instead of asking for the app
           startWithAudioMuted: false,
           startWithVideoMuted: false,
+          toolbarButtons: [], // our own controls sit in the bar below
+          p2p: { enabled: false }, // route through the server so page messages always arrive
+          disableTileEnlargement: true,
+          hideConferenceSubject: true,
+          hideConferenceTimer: true,
+          notifications: [],
+          filmstrip: { disableResizable: true },
         },
-        interfaceConfigOverwrite: { MOBILE_APP_PROMO: false },
+        interfaceConfigOverwrite: {
+          MOBILE_APP_PROMO: false,
+          TILE_VIEW_MAX_COLUMNS: 1, // one column: consultant and client stacked in two rows
+        },
       });
-      api.current.addListener("readyToClose", () => {
+      api.current = jitsi;
+
+      jitsi.addListener("videoConferenceJoined", () => {
+        jitsi.executeCommand("setTileView", true);
+        if (session.moderator) broadcast(pageRef.current);
+      });
+      jitsi.addListener("participantJoined", () => {
+        if (session.moderator) setTimeout(() => broadcast(pageRef.current), 1500);
+      });
+      jitsi.addListener("endpointTextMessageReceived", (e: { data?: { eventData?: { text?: string } }; eventData?: { text?: string } }) => {
+        if (session.moderator) return;
+        try {
+          const msg = JSON.parse(e?.data?.eventData?.text ?? e?.eventData?.text ?? "");
+          if (msg?.type === PAGE_MESSAGE && Number.isInteger(msg.page)) {
+            const p = Math.min(Math.max(msg.page, 0), lastPage);
+            pageRef.current = p;
+            setPage(p);
+          }
+        } catch {
+          // not one of our messages
+        }
+      });
+      jitsi.addListener("audioMuteStatusChanged", (e: { muted: boolean }) => setMicOn(!e.muted));
+      jitsi.addListener("videoMuteStatusChanged", (e: { muted: boolean }) => setCamOn(!e.muted));
+      jitsi.addListener("readyToClose", () => {
+        setFullPage(false);
         api.current?.dispose();
         api.current = null;
         setStage("ended");
@@ -95,15 +217,95 @@ export default function JitsiRoom({ room }: { room: string }) {
   }
 
   const scriptReady = Boolean(session);
+  const current = cataloguePages[page];
 
   return (
     <>
-      <div
-        ref={container}
-        hidden={stage !== "call"}
-        className="h-[calc(100dvh-4rem)] min-h-[480px] w-full bg-charcoal sm:h-[calc(100dvh-6rem)]"
-        aria-label="Video consultation"
-      />
+      {/* Call: videos stacked on the left, catalogue on the right, controls along the bottom. */}
+      <div hidden={stage !== "call"} className="h-[calc(100dvh-4rem)] min-h-[420px] flex-col bg-[#1a0b0e] sm:h-[calc(100dvh-6rem)] [&:not([hidden])]:flex">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,34%)_minmax(0,1fr)] lg:grid-cols-[minmax(0,26%)_minmax(0,1fr)]">
+          <div className="relative min-h-0 bg-charcoal">
+            <div ref={container} className="absolute inset-0" aria-label="Video consultation" />
+          </div>
+          <figure className="relative flex min-h-0 items-center justify-center p-1.5 sm:p-4">
+            <button
+              type="button"
+              onClick={() => setFullPage(true)}
+              aria-label="Open this page full screen"
+              className="group relative flex max-h-full max-w-full items-center justify-center"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP pages, swapped instantly */}
+              <img
+                src={current.src}
+                width={current.width}
+                height={current.height}
+                alt={`Your style catalogue, page ${page + 1} of ${lastPage + 1}`}
+                className="max-h-full max-w-full object-contain shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
+              />
+              <span className="absolute top-1.5 right-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white sm:top-3 sm:right-3 sm:h-10 sm:w-10">
+                <Maximize2 size={16} aria-hidden />
+              </span>
+            </button>
+          </figure>
+        </div>
+
+        {fullPage && (
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#120709]" role="dialog" aria-modal="true" aria-label="Catalogue page, full screen">
+            <button
+              type="button"
+              onClick={() => setFullPage(false)}
+              className="flex min-h-0 flex-1 items-center justify-center p-2"
+              aria-label="Close full screen and go back to the videos"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- same page image, larger */}
+              <img src={current.src} width={current.width} height={current.height} alt={`Your style catalogue, page ${page + 1} of ${lastPage + 1}`} className="max-h-full max-w-full object-contain" />
+            </button>
+            <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 sm:h-20 sm:px-6">
+              <RoundButton label="Back to the videos" onClick={() => setFullPage(false)}>
+                <X size={22} aria-hidden />
+              </RoundButton>
+              <div className="flex items-center gap-1.5 sm:gap-3">
+                <RoundButton label="Previous page" disabled={page === 0} onClick={() => goTo(page - 1)}>
+                  <ChevronLeft size={22} aria-hidden />
+                </RoundButton>
+                <p className="min-w-[3.6rem] text-center text-sm font-medium text-white tabular-nums sm:text-base">
+                  {page + 1} / {lastPage + 1}
+                </p>
+                <RoundButton label="Next page" disabled={page === lastPage} onClick={() => goTo(page + 1)}>
+                  <ChevronRight size={22} aria-hidden />
+                </RoundButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-[#120709] px-2 sm:h-20 sm:px-6">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <RoundButton label={micOn ? "Mute microphone" : "Unmute microphone"} pressed={!micOn} onClick={() => api.current?.executeCommand("toggleAudio")}>
+              {micOn ? <Mic size={20} aria-hidden /> : <MicOff size={20} aria-hidden />}
+            </RoundButton>
+            <RoundButton label={camOn ? "Turn camera off" : "Turn camera on"} pressed={!camOn} onClick={() => api.current?.executeCommand("toggleVideo")}>
+              {camOn ? <Video size={20} aria-hidden /> : <VideoOff size={20} aria-hidden />}
+            </RoundButton>
+            <RoundButton label="Leave the call" danger onClick={() => api.current?.executeCommand("hangup")}>
+              <PhoneOff size={20} aria-hidden />
+            </RoundButton>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-3" aria-label="Catalogue pages">
+            <RoundButton label="Previous page" disabled={page === 0} onClick={() => goTo(page - 1)}>
+              <ChevronLeft size={22} aria-hidden />
+            </RoundButton>
+            <p className="min-w-[3.6rem] text-center text-sm font-medium text-white tabular-nums sm:text-base" aria-live="polite">
+              {page + 1} / {lastPage + 1}
+            </p>
+            <RoundButton label="Next page" disabled={page === lastPage} onClick={() => goTo(page + 1)}>
+              <ChevronRight size={22} aria-hidden />
+            </RoundButton>
+          </div>
+        </div>
+      </div>
+
       {stage !== "call" && (
         <div className="container-x flex flex-1 items-center py-16">
           <div className="mx-auto w-full max-w-xl text-center">

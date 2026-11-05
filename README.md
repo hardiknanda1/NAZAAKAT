@@ -64,6 +64,12 @@ This uses the Calendly API, which works on Calendly's free plan — no webhook o
 4. Set **Location** to none (the video link comes from this site), and leave the confirmation page as Calendly's default. The site also shows its own confirmation message after booking.
 5. Copy the event link into `NEXT_PUBLIC_CALENDLY_URL`. If it's missing, or Calendly can't load, the booking section shows a calm placeholder, with a WhatsApp button if `NEXT_PUBLIC_WHATSAPP_NUMBER` is set.
 
+## Catalogue in the call (direct-consultation site)
+
+During the call the consultant's and client's videos are stacked on the left and the client's catalogue fills the right. **Prev / Next** (or the arrow keys) on the consultant's screen turn the page for everyone; the page number is sent through Jitsi's data channel and re-sent every few seconds so a late joiner catches up. The client can also flip pages on their own screen, and tapping a page opens it full screen.
+
+The pages are WebP images in `public/c/<random folder>/` listed in `lib/catalogue.ts`. The folder name is random so the client's pages can't be found by guessing, and search engines are told to skip `/c/`. For a new client: replace the images (01.webp, 02.webp, …, about 1500px tall) and the list in `lib/catalogue.ts`, ideally under a new random folder name.
+
 ## Video consultations (Jitsi)
 
 Customers open the link from WhatsApp, enter their name and tap **Join Consultation** — the call runs inside the page with the [Jitsi IFrame API](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe). No account or app.
