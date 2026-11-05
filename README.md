@@ -56,6 +56,25 @@ Each upcoming booking shows the client's name, time and WhatsApp number with:
 
 This uses the Calendly API, which works on Calendly's free plan — no webhook or paid plan needed.
 
+## Questionnaire and photos after booking
+
+Right after a client books in the calendar, the calendar is replaced by a short form: 1 to 5 photos and a few tap-to-choose questions (`lib/intake.ts`). Only after they send it does the "your meeting link arrives on WhatsApp" confirmation appear. Photos are shrunk in the browser (about 1600 px) before upload. Each booking card on `/admin` shows that client's answers and photos; questionnaires not tied to an upcoming booking are listed under **Other questionnaires**. Clients who booked in a new tab can be sent `https://YOUR-SITE/details`, which has the same form plus name and WhatsApp number.
+
+Data is stored in Supabase: answers in the table `consultation_intake`, photos in the **private** bucket `client-photos` (the admin page shows them through 1-hour links). Only the server holds the key.
+
+Setup (about 5 minutes):
+
+1. Create a free project at supabase.com (region: Mumbai is closest for India).
+2. **SQL Editor -> New query**, paste `supabase/schema.sql`, **Run**. This creates the table and the private bucket.
+3. **Project Settings -> API Keys**: copy the project URL and a **secret** key (`sb_secret_...`; an older `service_role` key also works).
+4. In Vercel set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (mark the key as sensitive), then redeploy.
+
+When `CALENDLY_API_TOKEN` is set, the server checks each form belongs to a real Calendly booking before saving it.
+
+## Catalogue in the call
+
+During a call the consultant can tap **Catalogue**: both screens switch to the two videos stacked on the left and the catalogue page on the right, with Prev / Next (and arrow keys) turning the page for everyone. **Close catalogue** returns both to the normal video. Tapping a page opens it full screen. Pages are WebP images in `public/c/<random folder>/`, listed in `lib/catalogue.ts`; the folder name is random and search engines skip `/c/`.
+
 ## Calendly
 
 1. Create an event type (e.g. "Style Consultation", 45 min).
@@ -107,6 +126,7 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `JITSI_DOMAIN` | Optional | Jitsi server when JaaS isn't set (default `meet.jit.si`, testing only) |
 | `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |
 | `ADMIN_PASSWORD`, `CALENDLY_API_TOKEN` | For /admin | Private bookings page with links to send |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | For the questionnaire | Stores answers and private photos sent after booking |
 
 ## Deploy on Vercel
 

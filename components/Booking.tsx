@@ -6,7 +6,7 @@ import Reveal from "./Reveal";
 const steps = [
   "Pick a date and time that suits you.",
   "Enter your name and WhatsApp number (with country code).",
-  "Confirm — your private meeting link arrives on WhatsApp.",
+  "Share a few photos and answers. Your private meeting link then arrives on WhatsApp.",
 ];
 
 function Placeholder() {

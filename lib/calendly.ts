@@ -5,7 +5,7 @@ import { site } from "./site";
 const API = "https://api.calendly.com";
 
 /** Digits only, including country code (e.g. "+91 98765 43210" → "919876543210"). */
-function normalisePhone(raw: string | null | undefined) {
+export function normalisePhone(raw: string | null | undefined) {
   const digits = (raw || "").replace(/\D/g, "").replace(/^00/, "");
   return digits.length >= 8 && digits.length <= 15 ? digits : null;
 }
@@ -23,6 +23,7 @@ type Invitee = {
 type ScheduledEvent = { uri: string; name?: string; start_time: string };
 
 export type Booking = {
+  inviteeUri: string;
   name: string;
   email: string;
   phone: string | null;
@@ -72,6 +73,7 @@ export async function upcomingBookings(token: string): Promise<Booking[]> {
         const name = inv.name?.trim() || "there";
         const when = formatWhen(event.start_time, inv.timezone);
         return {
+          inviteeUri: inv.uri,
           name,
           email: inv.email || "",
           phone: normalisePhone(answer?.answer) ?? normalisePhone(inv.text_reminder_number),
@@ -79,7 +81,7 @@ export async function upcomingBookings(token: string): Promise<Booking[]> {
           eventName: event.name || "Consultation",
           customerLink: links.customer,
           consultantLink: links.consultant,
-          message: `Hello ${name}, your NAZAAKAT style consultation is confirmed for ${when}.\n\nJoin your private video call here: ${links.customer}\n\nNo app or account needed — just tap the link at your appointment time and allow your camera and microphone.`,
+          message: `Hello ${name}, your NAZAAKAT style consultation is confirmed for ${when}.\n\nJoin your private video call here: ${links.customer}\n\nNo app or account needed. Just tap the link at your appointment time and allow your camera and microphone.`,
         };
       });
     }),
