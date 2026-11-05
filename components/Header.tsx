@@ -1,8 +1,9 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { nav } from "@/lib/site";
+import { BOOK_HREF, nav } from "@/lib/site";
 
 export default function Header({ logo }: { logo: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -35,26 +36,26 @@ export default function Header({ logo }: { logo: ReactNode }) {
       }`}
     >
       <div className="container-x flex h-24 items-center justify-between gap-6">
-        <a href="#home" aria-label="NAZAAKAT, back to top" onClick={close} className="shrink-0">
+        <Link href="/" aria-label="NAZAAKAT, back to home" onClick={close} className="shrink-0">
           {logo}
-        </a>
+        </Link>
 
         <nav aria-label="Main" className="hidden lg:block">
           <ul className="flex items-center gap-9">
             {nav.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className="py-2 text-[0.95rem] tracking-wide text-charcoal transition-colors hover:text-chocolate">
+                <Link href={item.href} className="py-2 text-[0.95rem] tracking-wide text-charcoal transition-colors hover:text-chocolate">
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
         </nav>
 
         <div className="flex items-center gap-2">
-          <a href="#book" className="btn-primary hidden min-h-12 px-6 text-[0.95rem] sm:inline-flex">
+          <Link href={BOOK_HREF} className="btn-primary hidden min-h-12 px-6 text-[0.95rem] sm:inline-flex">
             Book Consultation
-          </a>
+          </Link>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -73,16 +74,16 @@ export default function Header({ logo }: { logo: ReactNode }) {
           <ul className="container-x flex flex-col pt-4">
             {nav.map((item) => (
               <li key={item.href} className="border-b border-beige">
-                <a href={item.href} onClick={close} className="block py-5 font-serif text-3xl text-charcoal">
+                <Link href={item.href} onClick={close} className="block py-5 font-serif text-3xl text-charcoal">
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
           <div className="container-x py-8">
-            <a href="#book" onClick={close} className="btn-primary w-full text-lg">
+            <Link href={BOOK_HREF} onClick={close} className="btn-primary w-full text-lg">
               Book Consultation
-            </a>
+            </Link>
           </div>
         </nav>
       )}

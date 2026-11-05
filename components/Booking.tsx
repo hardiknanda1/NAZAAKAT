@@ -1,54 +1,15 @@
-import { CalendarDays, MessageCircle } from "lucide-react";
-import { site, whatsappLink } from "@/lib/site";
-import CalendlyEmbed from "./CalendlyEmbed";
+import { ArrowRight, Camera, CalendarCheck, MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { BOOK_HREF } from "@/lib/site";
 import Reveal from "./Reveal";
 
 const steps = [
-  "Pick a date and time that suits you.",
-  "Enter your name and WhatsApp number (with country code).",
-  "Share a few photos and answers. Your private meeting link then arrives on WhatsApp.",
+  { Icon: CalendarCheck, text: "Pick a date and time that suits you." },
+  { Icon: MessageCircle, text: "Enter your name and WhatsApp number." },
+  { Icon: Camera, text: "Share a few photos and answers, then your meeting link arrives on WhatsApp." },
 ];
 
-function Placeholder() {
-  const wa = whatsappLink("Hello NAZAAKAT, I would like to book a style consultation.");
-
-  // Calendly is set but couldn't load here (e.g. blocked by the browser): offer it in a new tab.
-  if (site.calendlyUrl) {
-    return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center border border-taupe/60 bg-ivory px-6 py-16 text-center">
-        <p className="eyebrow">Online booking</p>
-        <p className="mt-5 max-w-lg font-serif text-4xl leading-tight text-charcoal">Choose your consultation time.</p>
-        <p className="mt-4 max-w-md text-lg text-muted">Tap below to open our booking calendar.</p>
-        <a href={site.calendlyUrl} target="_blank" rel="noopener noreferrer" className="btn-primary mt-8 text-lg">
-          <CalendarDays size={20} strokeWidth={1.5} aria-hidden /> Open the booking calendar
-        </a>
-        {wa && (
-          <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-secondary mt-4 text-lg">
-            <MessageCircle size={20} strokeWidth={1.5} aria-hidden /> Or book on WhatsApp
-          </a>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-[420px] flex-col items-center justify-center border border-taupe/60 bg-ivory px-6 py-16 text-center">
-      <p className="eyebrow">Online booking</p>
-      <p className="mt-5 max-w-lg font-serif text-4xl leading-tight text-charcoal">
-        Our booking calendar is being prepared.
-      </p>
-      <p className="mt-4 max-w-md text-lg text-muted">
-        Please check back very soon{wa ? ", or message us on WhatsApp and we will find a time with you." : "."}
-      </p>
-      {wa && (
-        <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-primary mt-8 text-lg">
-          <MessageCircle size={20} strokeWidth={1.5} aria-hidden /> Book on WhatsApp
-        </a>
-      )}
-    </div>
-  );
-}
-
+// A short invitation on the home page; the actual date and time picker lives on its own page.
 export default function Booking() {
   return (
     <section id="book" aria-labelledby="book-title" className="bg-beige py-24 lg:py-32">
@@ -61,26 +22,28 @@ export default function Booking() {
           <p className="mt-6 text-xl text-muted">Book a one-on-one consultation with our style experts.</p>
         </Reveal>
 
-        <ol className="mx-auto mt-12 grid max-w-5xl gap-6 sm:grid-cols-3 sm:gap-8">
-          {steps.map((s, i) => (
-            <li key={s} className="flex gap-4 sm:flex-col sm:gap-2">
-              <span className="font-serif text-3xl text-chocolate italic" aria-hidden>
-                {i + 1}.
-              </span>
-              <span className="text-lg text-charcoal">
-                <span className="sr-only">Step {i + 1}: </span>
-                {s}
-              </span>
-            </li>
+        <ol className="mx-auto mt-14 grid max-w-4xl gap-8 sm:grid-cols-3">
+          {steps.map(({ Icon, text }, i) => (
+            <Reveal key={text} delay={i * 0.08}>
+              <li className="flex flex-col items-center text-center sm:items-start sm:text-left">
+                <Icon className="h-9 w-9 text-chocolate" strokeWidth={1.5} aria-hidden />
+                <span className="mt-4 text-lg text-charcoal">
+                  <span className="sr-only">Step {i + 1}: </span>
+                  {text}
+                </span>
+              </li>
+            </Reveal>
           ))}
         </ol>
-        <p className="mx-auto mt-8 max-w-5xl text-center text-base text-muted">
-          No registration, no passwords. Calendly will also ask for an email address to send your booking receipt.
-        </p>
 
-        <div className="mx-auto mt-12 max-w-5xl">
-          <CalendlyEmbed url={site.calendlyUrl} fallback={<Placeholder />} />
-        </div>
+        <Reveal className="mt-14 flex flex-col items-center gap-4">
+          <Link href={BOOK_HREF} className="btn-primary min-h-16 px-10 text-xl">
+            Book Your Consultation <ArrowRight size={22} strokeWidth={1.5} aria-hidden />
+          </Link>
+          <p className="max-w-md text-center text-base text-muted">
+            No registration, no passwords, no email address needed.
+          </p>
+        </Reveal>
       </div>
     </section>
   );
