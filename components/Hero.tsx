@@ -102,26 +102,26 @@ export default function Hero() {
       aria-labelledby="hero-title"
       className="relative overflow-hidden bg-[linear-gradient(to_bottom,transparent_60%,#f1ebe3),linear-gradient(100deg,#f6f1eb_0%,#f2eae2_55%,#ede4db_100%)] lg:flex lg:min-h-[max(100svh,calc(var(--hero-w)*0.805+6rem))] lg:items-center lg:[--hero-w:min(50vw,calc((100svh-6rem)/0.805))] xl:[--hero-w:min(58vw,calc((100svh-6rem)/0.805),68rem)]"
     >
-      <div className="container-x relative z-10 pt-28 sm:pt-36 lg:pt-28 lg:pb-16">
+      <div className="container-x relative z-10 pt-[4.5rem] sm:pt-36 lg:pt-28 lg:pb-16">
         {/* Copy */}
         <div className="lg:max-w-[44vw] xl:max-w-[min(42vw,40rem)]">
           <p className="eyebrow">Personal Fashion Consulting</p>
           <h1
             id="hero-title"
-            className="mt-6 font-serif text-[2.4rem] leading-[1.08] min-[400px]:text-[2.6rem] font-medium text-charcoal sm:text-6xl lg:text-[4.1rem] xl:text-[4.6rem]"
+            className="mt-3 font-serif text-[2.55rem] leading-[1.05] min-[400px]:text-[2.75rem] sm:mt-6 font-medium text-charcoal sm:text-6xl lg:text-[4.1rem] xl:text-[4.6rem]"
           >
             Style is personal.
             <span className="mt-1 block text-chocolate italic">Let us make it yours.</span>
           </h1>
-          <p className="mt-8 max-w-xl text-lg text-muted sm:text-xl">
+          <p className="mt-3 max-w-xl text-[0.94rem] leading-normal text-muted min-[400px]:text-base sm:mt-8 sm:text-xl sm:leading-[1.7]">
             Discover your proportions, understand your style, and find the looks that celebrate you. Personalised
             fashion guidance designed around <strong className="font-medium text-charcoal">you</strong>.
           </p>
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <a href="/start" className="btn-primary rounded-lg text-lg md:rounded-none">
+          <div className="mt-5 flex flex-col gap-2.5 sm:mt-10 sm:flex-row sm:gap-4">
+            <a href="/start" className="btn-primary rounded-lg text-lg max-sm:min-h-11 max-sm:text-base md:rounded-none">
               Start Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
             </a>
-            <a href="#services" className="btn-secondary rounded-lg text-lg md:rounded-none">
+            <a href="#services" className="btn-secondary rounded-lg text-lg max-sm:min-h-11 max-sm:text-base md:rounded-none">
               Explore Our Services
             </a>
           </div>
@@ -139,10 +139,10 @@ export default function Hero() {
 
       {/* Phones: full arch photo, three cards overlapping its lower edge, then the feature row */}
       <div className="md:hidden">
-        <div className="relative mx-auto mt-8 max-w-[32rem]">
+        <div className="relative mx-auto mt-3 w-[90%] max-w-[29rem]">
           <Image src={heroMobile} alt={alt} sizes="(min-width: 512px) 32rem, 100vw" placeholder="blur" preload className="h-auto w-full" style={mobileFade} />
         </div>
-        <div aria-hidden className="relative z-10 mx-auto -mt-[30vw] grid max-w-[32rem] grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)_minmax(0,1.12fr)] gap-1.5 px-2 text-[0.64rem] leading-snug min-[380px]:text-[0.68rem] min-[400px]:text-[0.72rem] min-[440px]:text-[0.8rem]">
+        <div aria-hidden className="relative z-10 mx-auto -mt-[24vw] grid max-w-[32rem] grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)_minmax(0,1.12fr)] gap-1.5 px-2 text-[0.64rem] leading-snug min-[380px]:text-[0.68rem] min-[400px]:text-[0.72rem] min-[440px]:text-[0.8rem]">
           <Reveal delay={0.1} className="h-full">
             <div className={`${card} flex h-full flex-col rounded-xl p-2 min-[380px]:p-2.5`}>
               <p className="flex items-center justify-between gap-1 font-medium text-charcoal min-[360px]:whitespace-nowrap">
@@ -175,11 +175,11 @@ export default function Hero() {
             </ul>
           </Reveal>
         </div>
-        <ul className="container-x mt-8 grid grid-cols-3 divide-x divide-taupe/50 pb-12">
+        <ul className="container-x mt-6 grid grid-cols-3 divide-x divide-taupe/50 pb-10">
           {features.map(({ label, Icon }) => (
             <li key={label} className="flex flex-col items-center gap-2.5 px-1 text-center">
-              <Icon className="h-8 w-8 text-chocolate" aria-hidden />
-              <span className="text-[0.92rem] leading-snug font-medium text-charcoal">{label}</span>
+              <Icon className="h-7 w-7 text-chocolate" aria-hidden />
+              <span className="text-[0.85rem] leading-snug font-medium text-charcoal">{label}</span>
             </li>
           ))}
         </ul>
