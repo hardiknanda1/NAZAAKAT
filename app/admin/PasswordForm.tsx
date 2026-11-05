@@ -1,13 +1,18 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useActionState } from "react";
 import { signIn } from "./actions";
 
 export default function PasswordForm() {
   const [state, action, pending] = useActionState(signIn, null);
+  // So that signing in from a booking's own page (e.g. the "consultant info" link) goes back to
+  // that same page, not to the full bookings list at /admin.
+  const pathname = usePathname();
 
   return (
     <form action={action} className="max-w-md">
+      <input type="hidden" name="redirectTo" value={pathname} />
       <label htmlFor="password" className="block text-lg font-medium text-charcoal">
         Password
       </label>

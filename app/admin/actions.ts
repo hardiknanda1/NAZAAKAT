@@ -36,13 +36,19 @@ export async function signIn(_prev: { error: string } | null, form: FormData) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/admin",
+    // "/" (not "/admin"): the admin API routes this cookie also has to reach live under
+    // /api/admin/*, a sibling path that a cookie scoped to "/admin" would never be sent to.
+    path: "/",
     maxAge: 60 * 60 * 24 * 30, // 30 days on this device
   });
-  redirect("/admin");
+
+  // Go back to whichever /admin page the password form was shown on (e.g. one booking's own
+  // "consultant info" page), never somewhere else: redirectTo must be an internal /admin path.
+  const redirectTo = String(form.get("redirectTo") || "");
+  redirect(redirectTo.startsWith("/admin") ? redirectTo : "/admin");
 }
 
 export async function signOut() {
-  (await cookies()).delete({ name: COOKIE, path: "/admin" });
+  (await cookies()).delete({ name: COOKIE, path: "/" });
   redirect("/admin");
 }

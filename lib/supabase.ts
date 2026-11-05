@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { roomForBooking } from "./meeting";
+
 // Minimal server-only Supabase client (REST, no extra packages besides fflate for zip catalogues).
 // Only the server holds the secret key, so visitors can never read anyone's bookings, answers or photos.
 // Setup SQL: supabase/schema.sql
@@ -85,13 +88,13 @@ export async function intakeForBooking(bookingId: string): Promise<Intake | null
 }
 
 /** Short-lived (1 hour) links so the admin page can show private files without making the bucket public. */
-export async function signedUrls(bucket: string, paths: string[]): Promise<Record<string, string>> {
+export async function signedUrls(bucket: string, paths: string[], expiresIn = 3600): Promise<Record<string, string>> {
   if (paths.length === 0) return {};
   const res = await check(
     await fetch(`${url()}/storage/v1/object/sign/${bucket}`, {
       method: "POST",
       headers: headers({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ expiresIn: 3600, paths }),
+      body: JSON.stringify({ expiresIn, paths }),
       cache: "no-store",
     }),
     "sign links",
@@ -156,6 +159,7 @@ export type BookingRow = {
   name: string;
   whatsapp: string;
   status: "confirmed" | "cancelled";
+  room: string;
   catalogue: Catalogue | null;
   created_at: string;
 };
@@ -176,16 +180,26 @@ export async function createBooking(slotId: string, name: string, whatsapp: stri
   if (claimed.length === 0) return null; // someone else just took it
 
   const slot = claimed[0];
+  // The id is generated here (not by the database) so the room, which is derived from it, can be
+  // stored in the same insert, and looked up later without ever recomputing the hash.
+  const id = randomUUID();
+  const room = roomForBooking(id);
   const res = await check(
     await fetch(rest("/bookings"), {
       method: "POST",
       headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
-      body: JSON.stringify({ slot_id: slot.id, starts_at: slot.starts_at, duration_minutes: slot.duration_minutes, name, whatsapp }),
+      body: JSON.stringify({ id, room, slot_id: slot.id, starts_at: slot.starts_at, duration_minutes: slot.duration_minutes, name, whatsapp }),
     }),
     "create booking",
   );
   const rows: BookingRow[] = await res.json();
   return rows[0];
+}
+
+export async function getBookingByRoom(room: string): Promise<BookingRow | null> {
+  const res = await check(await fetch(rest(`/bookings?room=eq.${room}&select=*&limit=1`), { headers: headers(), cache: "no-store" }), "read booking");
+  const rows: BookingRow[] = await res.json();
+  return rows[0] ?? null;
 }
 
 export async function getBooking(id: string): Promise<BookingRow | null> {

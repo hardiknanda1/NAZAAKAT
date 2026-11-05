@@ -22,10 +22,13 @@ create table if not exists public.bookings (
   name text not null,
   whatsapp text not null,
   status text not null default 'confirmed', -- confirmed | cancelled
+  room text, -- the signed video-call room name for this booking, set once at creation
   catalogue jsonb, -- null, {"type":"images","pages":[{"path":...,"width":...,"height":...}, ...]}, or {"type":"pdf","path":...}
   created_at timestamptz not null default now()
 );
+alter table public.bookings add column if not exists room text;
 create index if not exists bookings_starts_at on public.bookings (starts_at);
+create unique index if not exists bookings_room on public.bookings (room);
 alter table public.bookings enable row level security;
 
 -- Questionnaire answers and photo paths, tied to one of our own bookings.
