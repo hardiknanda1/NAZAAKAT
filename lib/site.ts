@@ -1,9 +1,14 @@
 // Public, non-secret site settings. Everything here is safe to expose to the browser.
 // Leave a value empty and the site shows a tasteful placeholder instead of inventing details.
 
+const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL;
+
 export const site = {
   name: "NAZAAKAT",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  // NEXT_PUBLIC_SITE_URL wins; otherwise Vercel's production address; localhost only in development.
+  url:
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (vercelHost ? `https://${vercelHost}` : "http://localhost:3000"),
   // Public booking page. Vercel's NEXT_PUBLIC_CALENDLY_URL overrides it.
   calendlyUrl: process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/mynazaakat",
   // Digits only, with country code, e.g. 9198XXXXXXXX
