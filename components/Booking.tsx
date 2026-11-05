@@ -1,4 +1,4 @@
-import { MessageCircle } from "lucide-react";
+import { CalendarDays, MessageCircle } from "lucide-react";
 import { site, whatsappLink } from "@/lib/site";
 import CalendlyEmbed from "./CalendlyEmbed";
 import Reveal from "./Reveal";
@@ -6,11 +6,31 @@ import Reveal from "./Reveal";
 const steps = [
   "Pick a date and time that suits you.",
   "Enter your name and WhatsApp number (with country code).",
-  "Confirm — your private meeting link arrives on WhatsApp.",
+  "Share a few photos and answers. Your private meeting link then arrives on WhatsApp.",
 ];
 
 function Placeholder() {
   const wa = whatsappLink("Hello NAZAAKAT, I would like to book a style consultation.");
+
+  // Calendly is set but couldn't load here (e.g. blocked by the browser): offer it in a new tab.
+  if (site.calendlyUrl) {
+    return (
+      <div className="flex min-h-[420px] flex-col items-center justify-center border border-taupe/60 bg-ivory px-6 py-16 text-center">
+        <p className="eyebrow">Online booking</p>
+        <p className="mt-5 max-w-lg font-serif text-4xl leading-tight text-charcoal">Choose your consultation time.</p>
+        <p className="mt-4 max-w-md text-lg text-muted">Tap below to open our booking calendar.</p>
+        <a href={site.calendlyUrl} target="_blank" rel="noopener noreferrer" className="btn-primary mt-8 text-lg">
+          <CalendarDays size={20} strokeWidth={1.5} aria-hidden /> Open the booking calendar
+        </a>
+        {wa && (
+          <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-secondary mt-4 text-lg">
+            <MessageCircle size={20} strokeWidth={1.5} aria-hidden /> Or book on WhatsApp
+          </a>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-[420px] flex-col items-center justify-center border border-taupe/60 bg-ivory px-6 py-16 text-center">
       <p className="eyebrow">Online booking</p>

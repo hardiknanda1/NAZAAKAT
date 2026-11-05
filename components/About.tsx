@@ -26,7 +26,7 @@ export default function About() {
                 of how you should look.
               </p>
               <p>
-                It is about understanding yourself — your shape, your colours, the life you live — and choosing clothes
+                It is about understanding yourself, your shape, your colours and the life you live, and choosing clothes
                 that make you feel comfortable, confident and truly yourself. We listen first, then guide you gently,
                 one conversation at a time.
               </p>

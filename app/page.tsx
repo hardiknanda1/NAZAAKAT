@@ -7,15 +7,17 @@ import HowItWorks from "@/components/HowItWorks";
 import Logo from "@/components/Logo";
 import Services from "@/components/Services";
 import Statement from "@/components/Statement";
+import StartAtTop from "@/components/StartAtTop";
 
 export default function Home() {
   return (
     <>
+      <StartAtTop />
       <Header logo={<Logo />} />
       <main id="main">
         <Hero />
         <Services />
-        <Statement>Not a new you. Just a style that feels more like you.</Statement>
+        <Statement>You already have a style. We are here to find it.</Statement>
         <HowItWorks />
         <About />
         <Booking />

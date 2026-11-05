@@ -1,6 +1,6 @@
 # NAZAAKAT — Personal Fashion Consulting
 
-A single-page website with Calendly booking, booking-confirmed WhatsApp messages and in-browser Jitsi video consultations.
+A single-page website with Calendly booking, a private bookings page for sending each client their video link on WhatsApp, and in-browser Jitsi (8x8 JaaS) video consultations.
 
 **Stack:** Next.js 16 (App Router) · React · TypeScript · Tailwind CSS 4 · Framer Motion (subtle fades only) · Lucide icons.
 No database, no customer accounts.
@@ -9,9 +9,10 @@ No database, no customer accounts.
 app/
   page.tsx                      Landing page (Hero, Services, Statement, How It Works, About, Booking, Contact)
   consultation/[room]/          Video consultation page (Jitsi IFrame API)
-  api/calendly/webhook/route.ts Calendly webhook → meeting link → WhatsApp
+  admin/                        Private bookings page (password) with links to send
+  api/jitsi/session/route.ts    Signs video tokens for real booking rooms
 components/                     One file per section, plus Logo, Photo, Reveal, CalendlyEmbed
-lib/                            site settings, WhatsApp client, room-name pattern
+lib/                            site settings, Calendly API, signed meeting rooms
 public/logo.*, public/images/   Brand logo and photographs (add these, see below)
 ```
 
@@ -39,63 +40,77 @@ The supplied logo is in `public/logo.png` (favicons generated from it in `app/ic
 
 Use licensed photography. Images are optimised and lazy-loaded automatically by `next/image`; the hero is preloaded.
 
+## Sending meeting links (bookings page)
+
+Meeting links are sent by hand from the private **bookings page** at `/admin`:
+
+1. In Calendly: **Integrations → API and webhooks → Personal access tokens → Generate new token**. Set it as `CALENDLY_API_TOKEN` in Vercel.
+2. Set `ADMIN_PASSWORD` in Vercel (and `MEETING_ROOM_SECRET` if not already set), then redeploy.
+3. Open `https://YOUR-SITE/admin` and enter the password. The device stays signed in for 30 days.
+
+Each upcoming booking shows the client's name, time and WhatsApp number with:
+
+- **Send on WhatsApp** — opens WhatsApp with a ready-written message and the client's private video link.
+- **Copy message** / **Copy customer link** — to paste anywhere.
+- **Join as consultant** — opens the call with host controls. Never send this link to clients.
+
+This uses the Calendly API, which works on Calendly's free plan — no webhook or paid plan needed.
+
+## Questionnaire and photos after booking
+
+Right after a client books in the calendar, the calendar is replaced by a short form: 1 to 5 photos and a few tap-to-choose questions (`lib/intake.ts`). Only after they send it does the "your meeting link arrives on WhatsApp" confirmation appear. Photos are shrunk in the browser (about 1600 px) before upload. Each booking card on `/admin` shows that client's answers and photos; questionnaires not tied to an upcoming booking are listed under **Other questionnaires**. Clients who booked in a new tab can be sent `https://YOUR-SITE/details`, which has the same form plus name and WhatsApp number.
+
+Data is stored in Supabase: answers in the table `consultation_intake`, photos in the **private** bucket `client-photos` (the admin page shows them through 1-hour links). Only the server holds the key.
+
+Setup (about 5 minutes):
+
+1. Create a free project at supabase.com (region: Mumbai is closest for India).
+2. **SQL Editor -> New query**, paste `supabase/schema.sql`, **Run**. This creates the table and the private bucket.
+3. **Project Settings -> API Keys**: copy the project URL and a **secret** key (`sb_secret_...`; an older `service_role` key also works).
+4. In Vercel set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (mark the key as sensitive), then redeploy.
+
+When `CALENDLY_API_TOKEN` is set, the server checks each form belongs to a real Calendly booking before saving it.
+
+## Catalogue in the call
+
+During a call the consultant can tap **Catalogue**: both screens switch to the two videos stacked on the left and the catalogue page on the right, with Prev / Next (and arrow keys) turning the page for everyone. **Close catalogue** returns both to the normal video. Tapping a page opens it full screen. Pages are WebP images in `public/c/<random folder>/`, listed in `lib/catalogue.ts`; the folder name is random and search engines skip `/c/`.
+
 ## Calendly
 
 1. Create an event type (e.g. "Style Consultation", 45 min).
 2. **Booking questions:** keep Name. Calendly always requires an email address — it can't be turned off, so it stays as the only other standard field.
-3. Add a custom question: type **Phone Number**, text exactly **`WhatsApp Number (with country code)`**, set to **required**. The webhook finds this answer by looking for "WhatsApp" in the question text.
+3. Add a custom question: type **Phone Number**, text exactly **`WhatsApp Number (with country code)`**, set to **required**. The bookings page finds this answer by looking for "WhatsApp" in the question text.
 4. Set **Location** to none (the video link comes from this site), and leave the confirmation page as Calendly's default. The site also shows its own confirmation message after booking.
 5. Copy the event link into `NEXT_PUBLIC_CALENDLY_URL`. If it's missing, or Calendly can't load, the booking section shows a calm placeholder, with a WhatsApp button if `NEXT_PUBLIC_WHATSAPP_NUMBER` is set.
 
-### Webhook (needs a paid Calendly plan, Standard or higher)
+## Video consultations (Jitsi)
 
-Choose a signing key (`openssl rand -hex 32`), set it as `CALENDLY_WEBHOOK_SIGNING_KEY`, then create the subscription with a Calendly personal access token:
+Customers open the link from WhatsApp, enter their name and tap **Join Consultation** — the call runs inside the page with the [Jitsi IFrame API](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe). No account or app.
+
+Each booking gets two links, both signed with `MEETING_ROOM_SECRET` (nothing is stored):
+
+- **Customer link** `…/consultation/nazaakat-…` — send it to the client (bookings page → **Send on WhatsApp**).
+- **Consultant link** — the same plus `?host=…`, which gives host (moderator) controls. Open it from the bookings page (**Join as consultant**); never send it to clients.
+
+Made-up room addresses show "page not found" and never get a video token.
+
+### Production: 8x8 Jitsi as a Service (JaaS)
+
+1. In the [JaaS console](https://jaas.8x8.vc): **API keys → Add API key → Generate API key pair**. Download the private key file and note the **Key ID**.
+2. Copy your **App ID** (`vpaas-magic-cookie-…`) from the console.
+3. In Vercel set `JAAS_APP_ID`, `JAAS_KEY_ID` and `JAAS_PRIVATE_KEY` (paste the whole key file, including the `-----BEGIN` / `-----END` lines), then redeploy.
+
+The server (`app/api/jitsi/session`) then signs a short-lived token for each person: customers join as guests, the consultant link joins as moderator. No sign-in and no 5-minute limit. The free JaaS tier covers a limited number of monthly users — check your plan in the console.
+
+Without JaaS, calls use `JITSI_DOMAIN` (default `meet.jit.si`). The public meet.jit.si is for testing only: embedded calls end after ~5 minutes and someone must sign in as host. A self-hosted Jitsi server with guest access also works — set `JITSI_DOMAIN` to it.
+
+### Make a test call without booking
 
 ```bash
-# Find your organization URI
-curl -s https://api.calendly.com/users/me -H "Authorization: Bearer $CALENDLY_TOKEN"
+node scripts/consultation-link.mjs YOUR_MEETING_ROOM_SECRET https://YOUR-SITE
 ```
 
-```bash
-curl -X POST https://api.calendly.com/webhook_subscriptions \
-  -H "Authorization: Bearer $CALENDLY_TOKEN" -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://YOUR-DOMAIN/api/calendly/webhook",
-    "events": ["invitee.created"],
-    "organization": "https://api.calendly.com/organizations/XXXX",
-    "scope": "organization",
-    "signing_key": "YOUR_SIGNING_KEY"
-  }'
-```
-
-The webhook:
-
-- rejects requests without a valid `Calendly-Webhook-Signature` (HMAC-SHA256, 5-minute tolerance), and returns 503 if the secrets aren't set;
-- creates a private room name, `nazaakat-<24 hex>`, from the invitee URI and `MEETING_ROOM_SECRET`. Nothing is stored, and Calendly retries get the same link;
-- sends `https://YOUR-DOMAIN/consultation/<room>` to the customer on WhatsApp, and optionally to the consultant;
-- never returns or exposes other customers' details. The consultation page only accepts the room-name format and is excluded from search engines.
-
-## WhatsApp (Meta WhatsApp Business Platform)
-
-1. Set up a WhatsApp Business account and phone number in [Meta for Developers](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started), then create a **permanent system-user access token**.
-2. In WhatsApp Manager, create a **Utility** message template and get it approved, for example `consultation_booked`:
-   > Hello {{1}}, your NAZAAKAT style consultation is confirmed for {{2}}. Join your private video call here: {{3}} — no app or account needed.
-3. Set `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME` and `WHATSAPP_TEMPLATE_LANGUAGE` (the template's language code, e.g. `en` or `en_US`).
-4. Optional consultant copy: approve a second template with the same three parameters, then set `CONSULTANT_WHATSAPP_NUMBER` and `WHATSAPP_CONSULTANT_TEMPLATE_NAME`.
-
-Until WhatsApp is configured, bookings are accepted and the webhook logs `whatsapp: "not_configured"`. **No message is sent**, so share links manually in the meantime.
-
-**Prefer Interakt or AiSensy?** Both are WhatsApp Business partners with simpler onboarding in India. Replace the body of `sendTemplate()` in `lib/whatsapp.ts` with their "send template message" API call. Nothing else changes.
-
-## Jitsi
-
-Customers open the link from WhatsApp, enter their name and tap **Join Consultation**. The call opens on the page through the [Jitsi IFrame API](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe), with no account or app needed.
-
-- **Development:** `NEXT_PUBLIC_JITSI_DOMAIN=meet.jit.si`. Embedded calls on the public meet.jit.si server are limited to about 5 minutes, and the first participant may be asked to sign in. Use it for testing only.
-- **Production, option A — Jitsi as a Service (8x8 JaaS):** set `NEXT_PUBLIC_JITSI_DOMAIN=8x8.vc` and `NEXT_PUBLIC_JITSI_ROOM_PREFIX=<your vpaas-magic-cookie app ID>`. JaaS normally requires a signed JWT (RS256) to join, so a small server route that signs one with your JaaS private key still needs to be added before launch. Pass it as the `jwt` option in `app/consultation/[room]/JitsiRoom.tsx`.
-- **Production, option B — self-hosted Jitsi:** set `NEXT_PUBLIC_JITSI_DOMAIN` to your server, e.g. `meet.nazaakat.com`. No other changes are needed.
-
-The consultant joins with the same link (sent on WhatsApp if the consultant template is configured).
+It prints a customer link and a consultant link for a fresh test room. Open one on each device.
 
 ## Environment variables
 
@@ -107,17 +122,15 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `NEXT_PUBLIC_CALENDLY_URL` | Yes | Calendly event link |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Recommended | "Chat on WhatsApp" buttons |
 | `NEXT_PUBLIC_INSTAGRAM_URL`, `NEXT_PUBLIC_CONTACT_EMAIL` | Optional | Contact section (placeholders shown when empty) |
-| `NEXT_PUBLIC_JITSI_DOMAIN`, `NEXT_PUBLIC_JITSI_ROOM_PREFIX` | Optional | Video server (default `meet.jit.si`) |
-| `CALENDLY_WEBHOOK_SIGNING_KEY` | For webhook | Verifies Calendly requests |
-| `MEETING_ROOM_SECRET` | For webhook | Derives private room names |
-| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME` | For WhatsApp | Sending meeting links |
-| `WHATSAPP_TEMPLATE_LANGUAGE`, `WHATSAPP_API_VERSION` | Optional | Defaults `en`, `v23.0` |
-| `CONSULTANT_WHATSAPP_NUMBER`, `WHATSAPP_CONSULTANT_TEMPLATE_NAME` | Optional | Consultant copy of each link |
+| `JAAS_APP_ID`, `JAAS_KEY_ID`, `JAAS_PRIVATE_KEY` | For launch | 8x8 JaaS video (no time limit, no host sign-in) |
+| `JITSI_DOMAIN` | Optional | Jitsi server when JaaS isn't set (default `meet.jit.si`, testing only) |
+| `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |
+| `ADMIN_PASSWORD`, `CALENDLY_API_TOKEN` | For /admin | Private bookings page with links to send |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | For the questionnaire | Stores answers and private photos sent after booking |
 
 ## Deploy on Vercel
 
 1. Push this repository to GitHub and choose **Import Project** in Vercel. The framework is detected automatically.
 2. Add the environment variables in **Project → Settings → Environment Variables**.
 3. Deploy, connect your domain, then set `NEXT_PUBLIC_SITE_URL` to it and redeploy.
-4. Create the Calendly webhook pointing at `https://YOUR-DOMAIN/api/calendly/webhook`.
-5. Make a test booking with your own WhatsApp number, and check **Vercel → Logs** for `[calendly]` entries.
+4. Make a test booking, open `https://YOUR-DOMAIN/admin`, enter the password and tap **Send on WhatsApp** to send yourself the link.

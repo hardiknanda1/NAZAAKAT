@@ -35,7 +35,7 @@ export default function Header({ logo }: { logo: ReactNode }) {
       }`}
     >
       <div className="container-x flex h-24 items-center justify-between gap-6">
-        <a href="#home" aria-label="NAZAAKAT — back to top" onClick={close} className="shrink-0">
+        <a href="#home" aria-label="NAZAAKAT, back to top" onClick={close} className="shrink-0">
           {logo}
         </a>
 
