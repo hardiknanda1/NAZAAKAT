@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import Logo from "@/components/Logo";
 import { consultationLinks, directRoom } from "@/lib/meeting";
@@ -35,8 +36,17 @@ async function Gate() {
 }
 
 // Direct-consultation site: one room that every "Start Consultation" button opens.
-function DirectRoom() {
-  const links = consultationLinks(site.url, directRoom());
+// Links use the address this page was opened on, so they always match the live site.
+async function siteOrigin() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  if (!host) return site.url;
+  const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+async function DirectRoom() {
+  const links = consultationLinks(await siteOrigin(), directRoom());
   return (
     <div className="border border-taupe/50 bg-white/60 p-5 sm:p-7">
       <h2 className="font-serif text-3xl font-medium text-charcoal">Consultation room</h2>
