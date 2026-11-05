@@ -32,9 +32,13 @@ const errors: Record<string, string> = {
   no_photos: "Please add at least one photo.",
   photo: "One of the photos could not be prepared. Please try a different photo.",
   bad_photo: "One of the photos could not be used. Please try a different photo.",
+  too_many_photos: "Please remove a photo. Up to 5 are allowed.",
   too_large: "The photos are too large together. Please remove one and try again.",
   need_contact: "Please enter your name and WhatsApp number.",
   bad_booking: "We could not find your booking. Please message us on WhatsApp.",
+  bad_answers: "Something went wrong with your answers. Please try again.",
+  not_configured: "This site is not ready to receive photos yet. Please message us on WhatsApp instead.",
+  save_failed: "We could not save your details just now. Please try again in a moment, or message us on WhatsApp.",
 };
 
 function Chip({ type, name, value, checked, onChange }: { type: "radio" | "checkbox"; name: string; value: string; checked: boolean; onChange: () => void }) {
