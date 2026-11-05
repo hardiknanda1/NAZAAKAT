@@ -83,8 +83,16 @@ export function jaasToken(room: string, moderator: boolean) {
     nbf: now - 30,
     exp: now + 4 * 60 * 60,
     context: {
-      user: { id: moderator ? "consultant" : `guest-${now}`, moderator: moderator ? "true" : "false" },
-      features: { livestreaming: "false", recording: "false", transcription: "false", "outbound-call": "false" },
+      user: { id: moderator ? "consultant" : `guest-${now}`, name: moderator ? "NAZAAKAT Stylist" : "Guest", moderator },
+      // Screen sharing and file sharing are allowed for everyone in the call; paid extras stay off.
+      features: {
+        "screen-sharing": true,
+        "file-upload": true,
+        livestreaming: false,
+        recording: false,
+        transcription: false,
+        "outbound-call": false,
+      },
     },
   };
 

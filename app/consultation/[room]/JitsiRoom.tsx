@@ -121,6 +121,11 @@ export default function JitsiRoom({ room }: { room: string }) {
               <>
                 <p className="eyebrow">Your Consultation</p>
                 <h1 className="mt-5 font-serif text-5xl leading-tight font-medium text-charcoal">Welcome. We are ready for you.</h1>
+                {session?.moderator && (
+                  <p className="mt-4 inline-block border border-taupe/60 bg-beige px-4 py-2 text-base font-medium text-chocolate">
+                    You are joining as the consultant (host)
+                  </p>
+                )}
                 <p className="mt-5 text-lg text-muted">
                   When you tap <strong className="font-medium text-charcoal">Join Consultation</strong>, your browser will
                   ask to use your camera and microphone. Please tap <strong className="font-medium text-charcoal">Allow</strong>.
