@@ -12,7 +12,7 @@ const services = [
   },
   {
     title: "Personal Style Assessment",
-    text: "Put words to the style you are drawn to, and make it work for your everyday life.",
+    text: "Somewhere in the clothes you love is a quiet signature. We help you read it, name it and wear it every day.",
   },
   {
     title: "Colour Analysis",
@@ -20,7 +20,7 @@ const services = [
   },
   {
     title: "Personalised Outfit Recommendations",
-    text: "Outfits chosen for your body and your occasions, with gentle guidance on what to keep, pair and add to your wardrobe.",
+    text: "Looks composed for the rhythm of your days, from slow mornings to festive evenings, so every outfit feels like it was waiting for you.",
   },
   {
     title: "Curated Fashion Catalogues",
@@ -55,7 +55,8 @@ export default function Services() {
           </div>
         </div>
 
-        <ol className="lg:col-span-7">
+        <div className="lg:col-span-7">
+        <ol>
           {services.map((s, i) => (
             <li key={s.title} className="border-t border-taupe/50 last:border-b">
               <Reveal className="grid grid-cols-[3.25rem_1fr] gap-4 py-9 sm:grid-cols-[5rem_1fr] sm:gap-6 sm:py-11">
@@ -70,6 +71,12 @@ export default function Services() {
             </li>
           ))}
         </ol>
+          <Reveal>
+            <p className="mt-10 text-right font-serif text-3xl leading-snug text-charcoal italic sm:text-4xl">
+              All this to bring out your <span className="text-[#6b1424]">Nazaakat</span>.
+            </p>
+          </Reveal>
+        </div>
       </div>
     </section>
   );

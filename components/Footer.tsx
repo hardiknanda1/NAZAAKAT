@@ -21,7 +21,7 @@ export default async function Footer() {
               We would love <span className="italic text-chocolate">to hear from you.</span>
             </h2>
             <p className="mt-6 max-w-md text-lg text-muted">
-              Have a question before you book? Send us a message — a real person will reply.
+              Have a question before you book? Send us a message and a real person will reply.
             </p>
           </div>
 
@@ -56,7 +56,7 @@ export default async function Footer() {
           <div className="md:col-span-5">
             <Logo className="h-24 w-32" />
             <p className="mt-6 max-w-sm text-base text-muted">
-              Personal fashion consulting for women who want to feel like themselves — beautifully.
+              Personal fashion consulting for women who want to feel like themselves, beautifully.
             </p>
           </div>
           <nav aria-label="Footer" className="md:col-span-4 md:col-start-7">

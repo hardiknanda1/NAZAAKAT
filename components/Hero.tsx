@@ -1,4 +1,4 @@
-import { ArrowRight, CircleArrowRight, CircleCheck, Layers } from "lucide-react";
+import { ArrowRight, CalendarHeart, CircleCheck } from "lucide-react";
 import Image from "next/image";
 import heroNarrow from "@/public/images/hero-narrow.webp";
 import heroWide from "@/public/images/hero-wide.webp";
@@ -47,7 +47,7 @@ function Silhouette({ className = "" }: { className?: string }) {
 const features = [
   { label: "Body Analysis", Icon: DressFormIcon },
   { label: "Personalised Looks", Icon: HangerIcon },
-  { label: "Wardrobe Planning", Icon: Layers },
+  { label: "Occasion-Led Dressing", Icon: CalendarHeart },
 ];
 
 const looks = [
@@ -75,12 +75,8 @@ function BodyCard({ className = "" }: { className?: string }) {
     <div className={`${card} flex items-center gap-[0.9em] rounded-2xl ${className}`}>
       <Silhouette className="h-[6.6em] w-[2.9em]" />
       <div className="min-w-0 flex-1">
-        <p className="flex items-center justify-between gap-2 font-medium text-charcoal">
-          Body Analysis <CircleCheck strokeWidth={1.5} className="h-[1.3em] w-[1.3em] shrink-0 text-chocolate" />
-        </p>
-        <div className="my-[0.8em] h-px bg-beige" />
-        <p className="text-[0.92em] text-muted">Your Shape</p>
-        <p className="text-[1.25em] font-medium text-charcoal">Hourglass</p>
+        <p className="text-[1.2em] font-medium text-charcoal">Body Shape</p>
+        <p className="mt-[0.15em] font-serif text-[1.5em] leading-tight text-chocolate italic">or is it?</p>
       </div>
     </div>
   );
@@ -108,7 +104,7 @@ export default function Hero() {
           </h1>
           <p className="mt-8 max-w-xl text-lg text-muted sm:text-xl">
             Discover your proportions, understand your style, and find the looks that celebrate you. Personalised
-            fashion guidance designed around <strong className="font-medium text-charcoal">you</strong>.
+            fashion guidance designed around <em className="font-serif text-[1.12em] text-chocolate italic">you</em>.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <a href="#book" className="btn-primary text-lg">
@@ -162,7 +158,6 @@ export default function Hero() {
                 {looks.map((l) => (
                   <Photo key={l.name} name={l.name} alt={l.alt} className="aspect-[4/5] flex-1 rounded-[0.8cqw]" sizes="140px" />
                 ))}
-                <CircleArrowRight strokeWidth={1.25} className="ml-[0.4cqw] h-[2.7cqw] w-[2.7cqw] shrink-0 text-chocolate" />
               </div>
             </div>
           </Reveal>
