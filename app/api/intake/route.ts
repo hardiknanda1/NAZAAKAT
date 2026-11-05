@@ -1,29 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { normalisePhone } from "@/lib/calendly";
+import { normalisePhone } from "@/lib/phone";
 import { MAX_PHOTO_BYTES, MAX_PHOTOS, MAX_TOTAL_BYTES, cleanAnswers } from "@/lib/intake";
-import { saveIntake, supabaseConfigured, uploadPhoto } from "@/lib/supabase";
+import { getBooking, saveIntake, supabaseConfigured, uploadPhoto } from "@/lib/supabase";
 
 // Receives the questionnaire and photos a client sends right after booking.
-const INVITEE_URI = /^https:\/\/api\.calendly\.com\/scheduled_events\/[A-Za-z0-9-]+\/invitees\/[A-Za-z0-9-]+$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-type Invitee = { name?: string; email?: string; text_reminder_number?: string | null; questions_and_answers?: { question?: string; answer?: string }[] };
-
-// Confirms the booking really exists, and reads the client's name and WhatsApp number from it.
-async function lookUpInvitee(uri: string): Promise<Invitee | null> {
-  const token = process.env.CALENDLY_API_TOKEN;
-  if (!token) return {};
-  try {
-    const res = await fetch(uri, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    if (res.status === 404) return null; // no such booking
-    if (!res.ok) throw new Error(String(res.status));
-    return (await res.json()).resource ?? {};
-  } catch (err) {
-    // Calendly unreachable right now: keep the client's photos rather than lose them.
-    console.warn("[intake] Could not check the booking with Calendly; saving anyway.", err);
-    return {};
-  }
-}
 
 export async function POST(request: Request) {
   if (!supabaseConfigured()) {
@@ -38,8 +20,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "too_large" }, { status: 413 });
   }
 
-  const inviteeUri = String(form.get("inviteeUri") || "");
-  if (inviteeUri && !INVITEE_URI.test(inviteeUri)) return Response.json({ error: "bad_booking" }, { status: 400 });
+  const bookingId = String(form.get("bookingId") || "");
+  if (bookingId && !UUID.test(bookingId)) return Response.json({ error: "bad_booking" }, { status: 400 });
 
   let answers: Record<string, string | string[]>;
   try {
@@ -56,17 +38,14 @@ export async function POST(request: Request) {
   }
   if (photos.reduce((n, p) => n + p.size, 0) > MAX_TOTAL_BYTES) return Response.json({ error: "too_large" }, { status: 413 });
 
-  // Name and number come from the Calendly booking when we have it, otherwise from the form.
+  // Name and number come from the booking when we have one, otherwise from the form.
   let name = String(form.get("name") || "").trim().slice(0, 120);
   let whatsapp = normalisePhone(String(form.get("whatsapp") || ""));
-  let email: string | null = null;
-  if (inviteeUri) {
-    const invitee = await lookUpInvitee(inviteeUri);
-    if (!invitee) return Response.json({ error: "bad_booking" }, { status: 400 });
-    name = invitee.name?.trim() || name;
-    email = invitee.email || null;
-    const qa = invitee.questions_and_answers?.find((x) => /whats\s?app|mobile|phone/i.test(x.question || ""));
-    whatsapp = normalisePhone(qa?.answer) ?? normalisePhone(invitee.text_reminder_number) ?? whatsapp;
+  if (bookingId) {
+    const booking = await getBooking(bookingId).catch(() => null);
+    if (!booking) return Response.json({ error: "bad_booking" }, { status: 400 });
+    name = booking.name || name;
+    whatsapp = normalisePhone(booking.whatsapp) ?? whatsapp;
   } else if (!name || !whatsapp) {
     return Response.json({ error: "need_contact" }, { status: 400 });
   }
@@ -80,7 +59,7 @@ export async function POST(request: Request) {
       await uploadPhoto(path, await photo.arrayBuffer(), photo.type);
       paths.push(path);
     }
-    await saveIntake({ invitee_uri: inviteeUri || null, name: name || null, whatsapp, email, answers, photos: paths });
+    await saveIntake({ booking_id: bookingId || null, name: name || null, whatsapp, answers, photos: paths });
   } catch (err) {
     console.error("[intake] Could not save the questionnaire.", err);
     return Response.json({ error: "save_failed" }, { status: 502 });
