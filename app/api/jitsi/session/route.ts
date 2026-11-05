@@ -29,7 +29,7 @@ export async function POST(request: Request) {
         { headers },
       );
     } catch (err) {
-      console.error("[jitsi] Could not sign JaaS token — check JAAS_PRIVATE_KEY.", err);
+      console.error("[jitsi] Could not sign JaaS token. Check JAAS_PRIVATE_KEY.", err);
       return Response.json({ error: "Video service not configured" }, { status: 500 });
     }
   }
