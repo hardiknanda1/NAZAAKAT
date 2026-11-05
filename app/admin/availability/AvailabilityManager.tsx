@@ -8,6 +8,17 @@ type Slot = { id: string; starts_at: string; duration_minutes: number; is_booked
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const errors: Record<string, string> = {
+  unauthorized: "Your sign-in has expired. Please refresh the page and sign in again.",
+  not_configured: "This site is not connected to Supabase yet. Add SUPABASE_URL and SUPABASE_SECRET_KEY in Vercel.",
+  no_slots: "That gives no future time slots. Please check the dates and times.",
+  too_many: "That is too many times to add at once. Please choose a shorter date range.",
+  bad_request: "Something went wrong with that request. Please try again.",
+  read_failed: "Could not load availability from the database. Open /api/intake/status to check the Supabase setup.",
+  save_failed: "Could not save those times to the database. Open /api/intake/status to check the Supabase setup.",
+  delete_failed: "Could not remove that time from the database. Open /api/intake/status to check the Supabase setup.",
+};
+
 function todayLocal() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -34,8 +45,8 @@ export default function AvailabilityManager() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "read_failed");
       setSlots(data.slots);
-    } catch {
-      setError("Could not load availability. Please refresh the page.");
+    } catch (err) {
+      setError(errors[(err as Error).message] || "Could not load availability. Please refresh the page.");
     }
   }
 
@@ -106,8 +117,8 @@ export default function AvailabilityManager() {
       if (!res.ok) throw new Error(data.error || "save_failed");
       setNotice(`Added ${data.added} time${data.added === 1 ? "" : "s"}. Times that already existed were left as they were.`);
       load();
-    } catch {
-      setError("Could not add those times. Please try again.");
+    } catch (err) {
+      setError(errors[(err as Error).message] || "Could not add those times. Please check your internet connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -117,9 +128,9 @@ export default function AvailabilityManager() {
     setSlots((s) => s?.filter((x) => x.id !== id) ?? s);
     try {
       const res = await fetch(`/api/admin/slots?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
-    } catch {
-      setError("Could not remove that time. Please refresh and try again.");
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "delete_failed");
+    } catch (err) {
+      setError(errors[(err as Error).message] || "Could not remove that time. Please refresh and try again.");
       load();
     }
   }
