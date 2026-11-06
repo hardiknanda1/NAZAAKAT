@@ -41,14 +41,16 @@ create table if not exists public.consultation_intake (
   answers jsonb not null default '{}'::jsonb,
   photos text[] not null default '{}' -- paths inside the private "client-photos" bucket
 );
-create index if not exists consultation_intake_booking on public.consultation_intake (booking_id);
-alter table public.consultation_intake enable row level security;
 
--- Migrating from an earlier version of this schema that stored a Calendly invitee_uri: harmless if
--- those columns never existed.
+-- Migrating from an earlier version of this schema that stored a Calendly invitee_uri: this must
+-- run before the index below, because CREATE TABLE IF NOT EXISTS above is a no-op on a table that
+-- already exists from an older run, so an existing table would not have booking_id yet otherwise.
 alter table public.consultation_intake add column if not exists booking_id uuid references public.bookings (id);
 alter table public.consultation_intake drop column if exists invitee_uri;
 alter table public.consultation_intake drop column if exists email;
+
+create index if not exists consultation_intake_booking on public.consultation_intake (booking_id);
+alter table public.consultation_intake enable row level security;
 
 -- Row level security is on with no policies anywhere above: only the website's server (secret key)
 -- can read or write any of this. Visitors and the publishable key see nothing.
