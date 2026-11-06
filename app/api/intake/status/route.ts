@@ -1,7 +1,13 @@
 import { connection } from "next/server";
-import { PHOTO_BUCKET, supabaseConfigured } from "@/lib/supabase";
+import { CATALOGUE_BUCKET, PHOTO_BUCKET, supabaseConfigured } from "@/lib/supabase";
 
-// Quick check of the questionnaire storage setup (no secrets): open /api/intake/status in a browser.
+const TABLES = ["booking_slots", "bookings", "consultation_intake"];
+const BUCKETS = [PHOTO_BUCKET, CATALOGUE_BUCKET];
+
+// Quick check of the Supabase setup (no secrets): open /api/intake/status in a browser.
+// Checks every table and bucket supabase/schema.sql creates, so re-running it after an update
+// (e.g. one that adds a table) shows up here instead of as a vague "could not add/send" error
+// on whichever page needed the missing piece.
 export async function GET() {
   await connection(); // read env vars fresh on every request, never bake them in at build time
   const url = (process.env.SUPABASE_URL || "").trim();
@@ -14,24 +20,43 @@ export async function GET() {
   }
   if (!key) problems.push("SUPABASE_SECRET_KEY is not set.");
 
-  let tableOk: boolean | null = null;
-  let bucketOk: boolean | null = null;
+  const tables: Record<string, boolean> = {};
+  const buckets: Record<string, boolean> = {};
+  let ranSchemaRecently = false;
+
   if (supabaseConfigured()) {
     const headers = { apikey: key, ...(key.startsWith("eyJ") ? { Authorization: `Bearer ${key}` } : {}) };
-    try {
-      const table = await fetch(`${url.replace(/\/$/, "")}/rest/v1/consultation_intake?select=id&limit=1`, { headers, cache: "no-store" });
-      tableOk = table.ok;
-      if (!table.ok) problems.push(`The consultation_intake table could not be reached (${table.status}). Run supabase/schema.sql in the SQL Editor.`);
-    } catch {
-      tableOk = false;
-      problems.push("Could not reach Supabase with this URL. Double check SUPABASE_URL.");
+    const base = url.replace(/\/$/, "");
+
+    for (const table of TABLES) {
+      try {
+        const res = await fetch(`${base}/rest/v1/${table}?select=id&limit=1`, { headers, cache: "no-store" });
+        tables[table] = res.ok;
+        if (!res.ok) {
+          problems.push(`The "${table}" table could not be reached (${res.status}).`);
+          ranSchemaRecently = true;
+        }
+      } catch {
+        tables[table] = false;
+        problems.push("Could not reach Supabase with this URL. Double check SUPABASE_URL.");
+      }
     }
-    try {
-      const bucket = await fetch(`${url.replace(/\/$/, "")}/storage/v1/bucket/${PHOTO_BUCKET}`, { headers, cache: "no-store" });
-      bucketOk = bucket.ok;
-      if (!bucket.ok) problems.push(`The ${PHOTO_BUCKET} storage bucket could not be reached (${bucket.status}). Run supabase/schema.sql in the SQL Editor.`);
-    } catch {
-      bucketOk = false;
+
+    for (const bucket of BUCKETS) {
+      try {
+        const res = await fetch(`${base}/storage/v1/bucket/${bucket}`, { headers, cache: "no-store" });
+        buckets[bucket] = res.ok;
+        if (!res.ok) {
+          problems.push(`The "${bucket}" storage bucket could not be reached (${res.status}).`);
+          ranSchemaRecently = true;
+        }
+      } catch {
+        buckets[bucket] = false;
+      }
+    }
+
+    if (ranSchemaRecently) {
+      problems.push('Open Supabase → SQL Editor → New query, paste the current supabase/schema.sql, and click Run. It is safe to run again even if you ran an older version before.');
     }
   }
 
@@ -40,8 +65,8 @@ export async function GET() {
       configured: supabaseConfigured(),
       status: supabaseConfigured() ? (problems.length ? "settings need fixing" : "ready") : "Supabase not set up",
       problems,
-      tableReachable: tableOk,
-      bucketReachable: bucketOk,
+      tables,
+      buckets,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
