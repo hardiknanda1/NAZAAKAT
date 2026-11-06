@@ -155,7 +155,7 @@ export default function Hero() {
 
           <Reveal delay={0.35} className="absolute top-[35.8cqw] left-[61.5cqw] w-[35cqw]">
             <div className={`${card} min-h-[18.4cqw] rounded-2xl p-[1.8cqw]`}>
-              <p className="text-[1.05em] font-medium text-charcoal">Curated For You</p>
+              <p className="text-[1.05em] font-medium text-charcoal">Get Your Stylebook Made</p>
               <div className="mt-[1.2cqw] flex items-center gap-[0.8cqw]">
                 {looks.map((l) => (
                   <Photo key={l.name} name={l.name} alt={l.alt} className="aspect-[4/5] flex-1 rounded-[0.8cqw]" sizes="140px" />
