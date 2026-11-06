@@ -67,6 +67,27 @@ Supabase. Nothing works until this is done.
 
 Only the server ever holds the secret key. Nothing here is reachable by a visitor's browser.
 
+## Getting emailed when a booking comes in (optional)
+
+By default, nothing tells you a client booked besides checking `/admin` yourself. To get an email
+each time instead, this project uses [Resend](https://resend.com), a transactional email API — no
+account on the client's side, no SDK, just one server-to-server call.
+
+1. Create a free Resend account (3,000 emails/month, 100/day) and copy an **API key**.
+2. In Vercel, set `RESEND_API_KEY` (mark it sensitive) and `NOTIFY_EMAIL` (the address you want the
+   emails sent to), then redeploy.
+3. Open `https://YOUR-SITE/api/notify/status` to confirm it says `"status": "ready"`.
+
+That's it — without a verified domain, Resend's shared sandbox sender (`onboarding@resend.dev`) can
+only deliver to the email address your Resend account itself was created with, so use that address
+as `NOTIFY_EMAIL` for now. To send to a different address, verify your own domain in Resend
+(**Domains** -> **Add Domain**, following their DNS instructions) and set `NOTIFY_FROM_EMAIL` to an
+address at that domain, e.g. `NAZAAKAT <bookings@yourdomain.com>`.
+
+This is entirely best-effort: if Resend is not configured, or the email fails to send for any reason,
+the booking still goes through — the client is never shown an error over something only you would
+want to know about.
+
 ## Booking (`/book`)
 
 A client picks an open date and time, enters their name and WhatsApp number, then is shown the
@@ -194,6 +215,8 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |
 | `ADMIN_PASSWORD` | Yes | The one password for everything under `/admin` |
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Yes | Availability, bookings, questionnaire, photos, catalogues |
+| `RESEND_API_KEY`, `NOTIFY_EMAIL` | Optional | Email yourself when a booking comes in |
+| `NOTIFY_FROM_EMAIL` | Optional | Send that email from a verified domain instead of Resend's sandbox sender |
 
 ## Deploy on Vercel
 

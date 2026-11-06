@@ -78,7 +78,7 @@ function BodyCard({ className = "" }: { className?: string }) {
       <Silhouette className="h-[6.6em] w-[2.9em]" />
       <div className="min-w-0 flex-1">
         <p className="text-[1.2em] font-medium text-charcoal">Body Shape Hourglass</p>
-        <p className="mt-[0.15em] font-serif text-[1.5em] leading-tight text-chocolate italic">or is it?</p>
+        <p className="mt-[0.15em] font-serif text-[1.5em] leading-tight text-chocolate italic">Or is it?</p>
       </div>
     </div>
   );

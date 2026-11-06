@@ -1,4 +1,5 @@
 import { normalisePhone } from "@/lib/phone";
+import { notifyNewBooking } from "@/lib/notify";
 import { createBooking, supabaseConfigured } from "@/lib/supabase";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
   try {
     const booking = await createBooking(slotId, name, whatsapp);
     if (!booking) return Response.json({ error: "slot_taken" }, { status: 409 });
+    await notifyNewBooking(booking); // best-effort; never blocks or fails the booking itself
     return Response.json({ ok: true, bookingId: booking.id, startsAt: booking.starts_at });
   } catch (err) {
     console.error("[book] Could not create the booking.", err);
