@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, CalendarDays, Clock, Loader2, MessageCircle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Intake from "@/components/Intake";
 import { whatsappLink } from "@/lib/site";
@@ -135,6 +136,9 @@ export default function BookingFlow() {
             Thank you. We will send your private video consultation link to your WhatsApp number shortly. Simply tap the
             link at your appointment time. No account or app download needed.
           </p>
+          <Link href="/" className="btn-secondary mt-6 rounded-lg text-base">
+            Return to Home
+          </Link>
         </div>
       </div>
     );
