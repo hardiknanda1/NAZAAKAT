@@ -47,7 +47,7 @@ export default function Services() {
             <Reveal delay={0.1} className="mt-12 hidden lg:block">
               <Photo
                 name="services"
-                alt="Close-up of an ivory lace dupatta with delicate floral embroidery"
+                alt="Fashion-illustration proportion guide: a croquis figure beside a column of numbered head heights"
                 className="aspect-[4/5] w-full max-w-sm rounded-t-full"
                 sizes="24rem"
               />
