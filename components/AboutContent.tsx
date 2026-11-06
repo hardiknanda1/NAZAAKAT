@@ -10,7 +10,7 @@ export default function AboutContent({ headingLevel: Heading = "h2" }: { heading
       <Reveal className="lg:col-span-5">
         <Photo
           name="about"
-          alt="A woman in an ivory embroidered outfit and statement earrings, looking confidently at the camera"
+          alt="A maroon leather-bound NAZAAKAT Personal Stylebook on a dressing table, with a portrait on its cover"
           className="aspect-[4/5] w-full rounded-t-full"
           sizes="(min-width: 1024px) 40vw, 100vw"
         />
@@ -37,7 +37,7 @@ export default function AboutContent({ headingLevel: Heading = "h2" }: { heading
 
         <Reveal delay={0.1}>
           <p className="mt-12 border-l border-taupe pl-6 font-serif text-3xl leading-snug text-chocolate italic sm:text-4xl">
-            Confidence is always in fashion.
+            We build your personal stylebook with the outfit links provided.
           </p>
         </Reveal>
       </div>
