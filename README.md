@@ -43,12 +43,25 @@ The supplied logo is in `public/logo.png` (favicons generated from it in `app/ic
 | --- | --- |
 | `public/logo.png` | Brand logo (header, footer, consultation page). Replace to update everywhere. |
 | `app/opengraph-image.jpg` (1200×630) | Social share image (optional). |
-| `public/images/hero-wide.webp`, `hero-narrow.webp` | Hero portrait (tablet/desktop and phone crops). The desktop detail cards are positioned over this exact composition; if you replace it with a different photo, adjust the card positions in `components/Hero.tsx`. A higher-resolution original will look sharper on retina screens. |
-| `public/images/look-1.jpg` … `look-3.jpg` | Outfit thumbnails in the hero "Curated For You" card (taken from the design mockup; replace with 4:5 product photos when available). |
-| `public/images/services.jpg` | Services section (4:5, desktop only). |
-| `public/images/about.jpg` | About section (4:5). |
+| `public/images/hero-wide.webp`, `hero-narrow.webp` | Classic hero portrait (see "Home page hero" below). The desktop detail cards are positioned over this exact composition; if you replace it with a different photo, adjust the card positions in `components/Hero.tsx`. |
+| `public/images/look-1.jpg` … `look-3.jpg` | Outfit thumbnails in the classic hero's stylebook card. |
+| `public/images/services.webp` | Services section (4:5, desktop only). |
+| `public/images/about.webp` | About section (4:5). |
 
 Use licensed photography. Images are optimised and lazy-loaded automatically by `next/image`; the hero is preloaded.
+
+## Home page hero
+
+The home page opens with the **body-shape wheel** (`components/ShapeHero.tsx`): five glowing cards
+(hourglass, pear, apple, rectangle, inverted triangle) circle a silhouette. **Spin** lands on a random
+shape, the silhouette reshapes itself to match, and a panel shows what flatters that shape. Below it,
+"Do you know your body shape?" lets a visitor lock in a guess, ahead of the photo analyser.
+
+The shapes, their descriptions, outfit tips, colours and silhouette proportions all live in
+`lib/shapes.ts`. Edit the text there; add or remove a shape and the ring re-spaces itself.
+
+To go back to the original photo hero (`components/Hero.tsx`, kept unchanged), set
+`NEXT_PUBLIC_HERO=classic` in Vercel and redeploy. Remove it (or leave it blank) to return to the wheel.
 
 ## Supabase setup (required)
 
@@ -210,6 +223,7 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `NEXT_PUBLIC_SITE_URL` | Yes (prod) | Canonical URL, OG metadata, meeting links |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Recommended | "Chat on WhatsApp" buttons |
 | `NEXT_PUBLIC_INSTAGRAM_URL`, `NEXT_PUBLIC_CONTACT_EMAIL` | Optional | Contact section (placeholders shown when empty) |
+| `NEXT_PUBLIC_HERO` | Optional | `classic` shows the original photo hero instead of the body-shape wheel |
 | `JAAS_APP_ID`, `JAAS_KEY_ID`, `JAAS_PRIVATE_KEY` | For launch | 8x8 JaaS video (no time limit, no host sign-in) |
 | `JITSI_DOMAIN` | Optional | Jitsi server when JaaS isn't set (default `meet.jit.si`, testing only) |
 | `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |

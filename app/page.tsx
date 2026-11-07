@@ -6,8 +6,12 @@ import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
 import Logo from "@/components/Logo";
 import Services from "@/components/Services";
+import ShapeHero from "@/components/ShapeHero";
 import Statement from "@/components/Statement";
 import StartAtTop from "@/components/StartAtTop";
+
+// NEXT_PUBLIC_HERO=classic brings back the original photo hero (components/Hero.tsx).
+const classicHero = process.env.NEXT_PUBLIC_HERO === "classic";
 
 export default function Home() {
   return (
@@ -15,7 +19,7 @@ export default function Home() {
       <StartAtTop />
       <Header logo={<Logo />} />
       <main id="main">
-        <Hero />
+        {classicHero ? <Hero /> : <ShapeHero />}
         <Services />
         <Statement>You already have a style. We are here to find it.</Statement>
         <HowItWorks />
