@@ -52,13 +52,16 @@ Use licensed photography. Images are optimised and lazy-loaded automatically by 
 
 ## Home page hero
 
-The home page opens with the **body-shape wheel** (`components/ShapeHero.tsx`): five glowing cards
-(hourglass, pear, apple, rectangle, inverted triangle) circle a silhouette. **Spin** lands on a random
-shape, the silhouette reshapes itself to match, and a panel shows what flatters that shape. Below it,
-"Do you know your body shape?" lets a visitor lock in a guess, ahead of the photo analyser.
+The home page opens with the **body-shape wheel** (`components/ShapeHero.tsx`), built on
+`public/images/hero-shapes.webp`: a silhouette inside a ring of glowing panels. The five front panels
+stand for pear, apple, hourglass, rectangle and inverted triangle. **Spin** runs a light around them
+until it stops on one, and that panel grows out into a large card beside the figure with the shape's
+description and what flatters it. Below it, "Do you know your body shape?" lets a visitor lock in a
+guess, ahead of the photo analyser.
 
-The shapes, their descriptions, outfit tips, colours and silhouette proportions all live in
-`lib/shapes.ts`. Edit the text there; add or remove a shape and the ring re-spaces itself.
+The shapes' text, outfit tips and card colours live in `lib/shapes.ts`, along with each panel's
+outline in the image (`panel`, in the image's pixels). If the image is replaced, update those outlines
+and `HERO_IMAGE_SIZE` to match.
 
 To go back to the original photo hero (`components/Hero.tsx`, kept unchanged), set
 `NEXT_PUBLIC_HERO=classic` in Vercel and redeploy. Remove it (or leave it blank) to return to the wheel.
