@@ -1,13 +1,15 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { BOOK_HREF, nav } from "@/lib/site";
 
 export default function Header({ logo }: { logo: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -44,7 +46,11 @@ export default function Header({ logo }: { logo: ReactNode }) {
           <ul className="flex items-center gap-9">
             {nav.map((item) => (
               <li key={item.href}>
-                <Link href={item.href} className="py-2 text-[0.95rem] tracking-wide text-charcoal transition-colors hover:text-chocolate">
+                <Link
+                  href={item.href}
+                  aria-current={item.href === pathname ? "page" : undefined}
+                  className="border-b-2 border-transparent py-2 text-[1rem] font-medium tracking-wide text-charcoal transition-colors hover:text-[#6b0117] aria-[current=page]:border-[#6b0117] aria-[current=page]:text-[#6b0117]"
+                >
                   {item.label}
                 </Link>
               </li>
@@ -53,8 +59,8 @@ export default function Header({ logo }: { logo: ReactNode }) {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href={BOOK_HREF} className="btn-primary hidden min-h-12 px-6 text-[0.95rem] sm:inline-flex">
-            Book Consultation
+          <Link href={BOOK_HREF} className="btn hidden min-h-12 bg-[#6b0117] px-6 text-[0.95rem] text-ivory hover:bg-[#4f0011] sm:inline-flex">
+            Book Consultation <ArrowRight size={18} strokeWidth={1.75} aria-hidden />
           </Link>
           <button
             type="button"

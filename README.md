@@ -52,13 +52,12 @@ Use licensed photography. Images are optimised and lazy-loaded automatically by 
 
 ## Home page hero
 
-The home page opens with the original hero copy on the left and the **body-shape wheel**
-(`components/ShapeHero.tsx`) on the right: a silhouette (`public/images/hero-figure.webp`, cut out with
-a transparent background) inside a 3D ring of 15 glowing panels, built in CSS. Each panel stands for
-one of the five shapes (pear, apple, hourglass, rectangle, inverted triangle, repeating round the ring).
-**Spin** turns the ring until a panel stops in front, and that panel grows into a card under the figure
-with the shape's description and what flatters it; the card's arrows turn the ring one panel at a time.
-Below it, "Do you know your body shape?" lets a visitor lock in a guess, ahead of the photo analyser.
+The home page hero (`components/ShapeHero.tsx`) has the copy on the left and, on the right, a woman
+(`public/images/hero-woman.webp`) inside a golden arch and a 3D ring of 15 panels built in CSS, with the
+current shape's card in front. Below it, "Guess your Body shape" has one button per shape: picking one
+locks in the guess, spins the ring until a panel of that shape stops in front, updates the card, and
+links to the photo analyser. The bougainvillea and silk drape are `hero-flowers.webp` and
+`hero-drape.webp`; all three images were cut out of the supplied design mockup.
 
 The shapes' text and outfit tips live in `lib/shapes.ts`. The ring's size, tilt and perspective are the
 constants at the top of `components/ShapeHero.tsx`.
