@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, RotateCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -19,22 +19,39 @@ const GOLD = "#daa764";
 // in container units (cqw) of the stage, so the whole figure scales together.
 const PANELS = 15;
 const STEP = 360 / PANELS;
-const RADIUS = 48;
+const RADIUS = 51;
 const TILT = 15;
 const PERSPECTIVE = 240;
 const RING_Y = 50; // ring centre from the top of the stage
-const PANEL = { w: 19.6, h: 27 };
+const PANEL = { w: 20.4, h: 27, rim: 0.55 };
 const START = shapes.findIndex((s) => s.id === "rectangle"); // the shape shown first
 const SPIN_MS = 2600;
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
+
+// Velvet colours round the ring, as in the artwork: maroon and coral on the left, gold, olive and teal on
+// the right, peach and beige towards the front and back. Index 0 faces front when the page loads.
+const RING_COLOURS = [
+  "#eba083", "#d4a03e", "#a39150", "#2c6a50", "#1a5a5b", "#7a8f62", "#d29a3c", "#eab98a",
+  "#efa486", "#dc6c5d", "#b02f3c", "#7a1020", "#951c2c", "#d25f53", "#e5806e",
+];
 const shapeOf = (panel: number) => shapes[panel % shapes.length];
 
-// One of the ring's panels for this shape, picked at random so the ring stops in a different place each time.
-function panelFor(shapeIndex: number) {
-  const options = Array.from({ length: PANELS }, (_, i) => i).filter((i) => i % shapes.length === shapeIndex);
+// The guess goes with the visitor to the analyser page, which picks it up from here.
+function saveGuess(id: string) {
+  try {
+    localStorage.setItem(GUESS_KEY, id);
+  } catch {
+    // storage blocked: they choose again on the analyser page
+  }
+}
+
+// A panel of a different shape than the one in front, picked at random, so every spin lands somewhere new.
+function randomPanel(current: number) {
+  const options = Array.from({ length: PANELS }, (_, i) => i).filter((i) => i % shapes.length !== current % shapes.length);
   return options[Math.floor(Math.random() * options.length)];
 }
+
 
 function ShapeIcon({ id, className = "" }: { id: string; className?: string }) {
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinejoin: "round" as const };
@@ -109,25 +126,16 @@ export default function ShapeHero() {
   const [front, setFront] = useState(START); // panel facing front, whose card is showing
   const [rotation, setRotation] = useState(START * STEP);
   const [spinning, setSpinning] = useState(false);
-  const [guess, setGuess] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const shape = shapeOf(front);
 
-  // Picking a shape locks in the guess and spins the ring until one of that shape's panels faces front.
-  function pick(id: string) {
+  // Spins the ring a couple of turns until another shape's panel stops in front.
+  function spin() {
     if (spinning) return;
-    setGuess(id);
-    try {
-      localStorage.setItem(GUESS_KEY, id);
-    } catch {
-      // storage blocked: the guess just isn't remembered
-    }
-    const s = shapes.findIndex((x) => x.id === id);
-    if (s === front % shapes.length) return;
-    const target = panelFor(s);
+    const target = randomPanel(front);
     const next = rotation - mod(rotation - target * STEP, 360) - 360 * 2;
     setRotation(next);
     if (reduce) {
@@ -141,8 +149,6 @@ export default function ShapeHero() {
     }, SPIN_MS - 200);
   }
 
-  const picked = shapes.find((s) => s.id === guess);
-
   return (
     <MotionConfig reducedMotion="user">
       <section
@@ -151,8 +157,8 @@ export default function ShapeHero() {
         className="relative overflow-hidden bg-[#fdf0e9] bg-[radial-gradient(60%_55%_at_72%_38%,#fff8f1_0%,transparent_70%),linear-gradient(115deg,#fdf1ea_0%,#fdf0e9_40%,#fbeae2_100%)]"
       >
         {/* Decorations from the artwork: bougainvillea top right, red silk bottom left */}
-        <Image src={flowers} alt="" aria-hidden sizes="16rem" className="pointer-events-none absolute top-0 right-0 w-[min(34vw,15.5rem)]" />
-        <Image src={drape} alt="" aria-hidden sizes="60vw" className="pointer-events-none absolute bottom-0 left-0 hidden w-[min(58vw,62rem)] lg:block" />
+        <Image src={flowers} alt="" aria-hidden sizes="22rem" className="pointer-events-none absolute top-0 right-0 w-[min(46vw,21rem)]" />
+        <Image src={drape} alt="" aria-hidden sizes="70vw" className="pointer-events-none absolute bottom-0 left-0 hidden w-[min(68vw,70rem)] lg:block" />
 
         <div className="container-x relative grid items-center gap-12 pt-32 pb-14 sm:pt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10 lg:pt-28 lg:pb-12">
           {/* Copy */}
@@ -211,9 +217,9 @@ export default function ShapeHero() {
                     <Image
                       src={woman}
                       alt="A woman in an ivory saree with her hair in a bun, inside a ring of colour panels, one for each body shape"
-                      sizes="(min-width: 1024px) 15rem, 36vw"
+                      sizes="(min-width: 1024px) 24rem, 63vw"
                       preload
-                      className="absolute top-[2.5cqw] left-[34.2cqw] h-auto w-[35.6cqw]"
+                      className="absolute top-[4.2cqw] left-[17.75cqw] h-auto w-[63cqw]"
                     />
                     <div
                       aria-hidden
@@ -227,20 +233,32 @@ export default function ShapeHero() {
                       {Array.from({ length: PANELS }, (_, i) => (
                         <div
                           key={i}
-                          className="absolute rounded-[0.7cqw] border-[0.32cqw]"
+                          className="absolute rounded-[1.1cqw]"
                           style={{
                             width: `${PANEL.w}cqw`,
                             height: `${PANEL.h}cqw`,
                             left: `${-PANEL.w / 2}cqw`,
                             top: `${-PANEL.h / 2}cqw`,
+                            padding: `${PANEL.rim}cqw`,
                             transform: `rotateY(${-i * STEP}deg) translateZ(${RADIUS}cqw)`, // warm colours to the left, as in the artwork
-                            borderColor: "#e3c27f",
-                            backgroundColor: shapeOf(i).panel,
-                            backgroundImage:
-                              "linear-gradient(90deg, rgba(0,0,0,0.22) 0%, rgba(255,255,255,0.14) 28%, rgba(255,255,255,0.05) 62%, rgba(0,0,0,0.2) 100%), linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(0,0,0,0.12) 100%)",
-                            boxShadow: "0 1cqw 2cqw rgba(110,45,30,0.18)",
+                            // Polished gold rim, as on the supplied panel
+                            background: "linear-gradient(165deg, #fbe39d 0%, #d9a93f 22%, #f5d27a 48%, #b8862b 74%, #f0cd78 100%)",
+                            boxShadow: "0 1cqw 2.2cqw rgba(110,45,30,0.22)",
                           }}
-                        />
+                        >
+                          <div
+                            className="h-full w-full rounded-[0.7cqw]"
+                            style={{
+                              backgroundColor: RING_COLOURS[mod(START - i, PANELS)],
+                              // The supplied velvet damask, tinted to the panel's colour and shaded like a curved surface
+                              backgroundImage: "linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(255,255,255,0.1) 30%, rgba(255,255,255,0.03) 60%, rgba(0,0,0,0.28) 100%), url(/images/velvet.webp)",
+                              backgroundBlendMode: "normal, multiply",
+                              backgroundSize: "100% 100%, auto 100%",
+                              backgroundPosition: `0 0, ${(i * 37) % 100}% 50%`,
+                              boxShadow: "inset 0 0 1.2cqw rgba(0,0,0,0.35)",
+                            }}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -249,11 +267,23 @@ export default function ShapeHero() {
                 <div className="pt-[39cqw]">
                   <ShapeCard shape={shape} />
                 </div>
+                <div className="relative z-10 mt-3 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={spin}
+                    disabled={spinning}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border bg-[#fdf6f2] px-4 text-sm font-semibold tracking-wide shadow-[0_6px_18px_-10px_rgba(107,1,23,0.5)] transition-colors hover:bg-[#f8dbcc] disabled:opacity-70"
+                    style={{ borderColor: GOLD, color: MAROON }}
+                  >
+                    <RotateCw size={15} strokeWidth={2} className={spinning ? "animate-spin" : ""} aria-hidden />
+                    {spinning ? "Spinning…" : "Spin"}
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Guess your shape */}
-            <div className="relative mt-9">
+            <div className="relative mt-6">
               <p className="flex items-center gap-4 font-serif text-[1.7rem] leading-tight text-[#1f1a18] sm:text-[2rem] lg:text-[1.8rem] xl:text-[2.15rem]">
                 <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#8a4a52" }} />
                 <span className="text-center sm:whitespace-nowrap lg:whitespace-normal xl:whitespace-nowrap">
@@ -273,37 +303,22 @@ export default function ShapeHero() {
                   const on = s.id === shape.id;
                   return (
                     <li key={s.id} className="w-[calc((100%-1.5rem)/3)] sm:w-[calc((100%-3rem)/5)]">
-                      <button
-                        type="button"
-                        onClick={() => pick(s.id)}
-                        disabled={spinning}
-                        aria-pressed={guess === s.id}
-                        className={`flex h-full min-h-[6.2rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border px-1.5 py-3 text-center text-[1rem] leading-tight font-medium lg:text-[0.88rem] xl:text-[1.05rem] transition-colors disabled:cursor-wait ${
+                      <Link
+                        href="/body-shape"
+                        onClick={() => saveGuess(s.id)}
+                        className={`flex h-full min-h-[6.2rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border px-1.5 py-3 text-center text-[1rem] leading-tight font-medium transition-colors lg:text-[0.88rem] xl:text-[1.05rem] ${
                           on ? "border-[#c9867f] bg-[#f8dbcc] font-semibold" : "border-[#f0d6cc] bg-[#fdf6f2]/80 text-charcoal hover:border-[#c9867f]"
                         }`}
                         style={on ? { color: MAROON } : undefined}
                       >
                         <ShapeIcon id={s.id} className="h-10 w-10 text-[#6b0117]" />
                         {s.name}
-                      </button>
+                      </Link>
                     </li>
                   );
                 })}
               </ul>
-              <div aria-live="polite" className="mt-4 min-h-7 text-center text-base text-charcoal">
-                {picked && !spinning && (
-                  <p>
-                    Locked in:{" "}
-                    <span className="font-serif text-lg italic" style={{ color: MAROON }}>
-                      {picked.name}
-                    </span>
-                    .{" "}
-                    <Link href="/body-shape" className="font-medium underline underline-offset-4" style={{ color: MAROON }}>
-                      Find out with a photo
-                    </Link>
-                  </p>
-                )}
-              </div>
+              <p className="mt-4 text-center text-base text-muted">Pick your guess, then add a photo to find out.</p>
             </div>
           </div>
         </div>
