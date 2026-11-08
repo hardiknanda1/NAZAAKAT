@@ -78,7 +78,16 @@ export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "ima
       generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2 },
     }),
   });
-  if (!res.ok) throw new Error(`Gemini request failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    const raw = await res.text();
+    let message = raw;
+    try {
+      message = (JSON.parse(raw) as { error?: { message?: string } }).error?.message || raw;
+    } catch {
+      // not JSON: keep the raw text
+    }
+    throw new Error(`Gemini request failed (${res.status}): ${message.slice(0, 500)}`);
+  }
 
   const data = (await res.json()) as GeminiResponse;
   const candidate = data.candidates?.[0];
@@ -99,4 +108,17 @@ export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "ima
   if (out.status !== "ok" || !out.shape || !SHAPE_IDS.includes(out.shape)) return { status: "unclear", reason };
   const confidence = out.confidence === "high" || out.confidence === "low" ? out.confidence : "medium";
   return { status: "ok", shape: out.shape, confidence, reason };
+}
+
+// A blank 1 x 1 pixel PNG: enough to send Gemini a real request of the same kind as a visitor's photo.
+const TEST_IMAGE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+/** Sends Gemini one real analysis request (a blank pixel, costs a tiny fraction of a cent) and reports what happened. */
+export async function testAnalysis(): Promise<{ ok: true; answer: string } | { ok: false; error: string }> {
+  try {
+    const result = await analysePhoto(Buffer.from(TEST_IMAGE, "base64"), "image/png");
+    return { ok: true, answer: result.status === "unclear" ? `unclear (expected for a blank image): ${result.reason}` : result.shape };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
 }
