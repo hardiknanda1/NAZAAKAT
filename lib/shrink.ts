@@ -1,10 +1,10 @@
 import { MAX_PHOTO_BYTES } from "./intake";
 
-// Shrinks a phone photo (often 3-8 MB) to about 1600 px JPEG so uploads are quick and fit the server limit.
-export async function shrink(file: File): Promise<Blob> {
+// Shrinks a phone photo (often 3-8 MB) to a JPEG of at most `maxSide` px so uploads are quick and fit the server limit.
+export async function shrink(file: File, maxSide = 1600): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);

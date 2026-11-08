@@ -108,7 +108,7 @@ export default function ShapeAnalyzer() {
     if (!file) return;
     setError("");
     try {
-      const blob = await shrink(file);
+      const blob = await shrink(file, 1024); // plenty for reading proportions, and quicker to send
       setPhoto({ blob, url: URL.createObjectURL(blob) });
     } catch {
       setError(message("photo"));

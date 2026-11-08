@@ -8,7 +8,16 @@ import { SHAPE_IDS } from "./shapes";
 const env = (name: string) => (process.env[name] || "").trim();
 // Models are tried in this order: when one is overloaded or unavailable (Google answers 503 under
 // heavy demand, and retires older models for new accounts), the next one takes over.
-const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+// The Lite models are a little less precise, so they come last.
+const DEFAULT_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+];
 const MODEL_NAME = /^[a-z0-9][a-z0-9.-]*$/;
 
 /** GEMINI_MODEL as model names, tidied: "models/Gemini 3.8 Flash" or quoted values still work. A comma list sets the order. */
@@ -95,9 +104,11 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-// The whole analysis must finish inside the route's 60-second limit, so each model gets a share of it.
+// The whole analysis must finish inside the route's 60-second limit.
 const TOTAL_BUDGET_MS = 48_000;
-const PER_MODEL_MS = 20_000;
+// Under heavy demand a model may accept a request and then hang, so the next model is asked as well
+// after this long without an answer (or straight away when one fails). The first good answer wins.
+const HEDGE_MS = 5_000;
 
 // Gemini 3 models reason at length by default, which is slow and unnecessary for picking one of five
 // shapes; a low thinking level answers much faster.
@@ -116,12 +127,12 @@ function analysisBody(model: string, mediaType: string, base64: string) {
 }
 
 /** One generateContent call; throws a readable error for a timeout or a non-2xx answer. */
-async function callModel(model: string, body: object, timeoutMs: number): Promise<GeminiResponse> {
+async function callModel(model: string, body: object, timeoutMs: number, cancel?: AbortSignal): Promise<GeminiResponse> {
   let res: Response;
   try {
     res = await fetch(`${apiBase()}/v1beta/models/${model}:generateContent`, {
       method: "POST",
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: cancel ? AbortSignal.any([cancel, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
       headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -142,23 +153,61 @@ async function callModel(model: string, body: object, timeoutMs: number): Promis
   return (await res.json()) as GeminiResponse;
 }
 
-export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
-  const base64 = photo.toString("base64");
-  const started = Date.now();
+/**
+ * Asks the models in order, overlapping: the next one is asked when the current one fails, or after
+ * HEDGE_MS without an answer. The first good answer wins and every other request is cancelled.
+ */
+function firstAnswer(base64: string, mediaType: string): Promise<GeminiResponse> {
+  const chain = modelChain();
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const cancel = new AbortController();
   const failures: string[] = [];
-  let data: GeminiResponse | null = null;
-  for (const model of modelChain()) {
-    const left = TOTAL_BUDGET_MS - (Date.now() - started);
-    if (left < 4_000) break;
-    try {
-      data = await callModel(model, analysisBody(model, mediaType, base64), Math.min(PER_MODEL_MS, left));
-      if (failures.length) console.warn(`[shape] Used ${model} after: ${failures.join(" | ")}`);
-      break;
-    } catch (err) {
-      failures.push((err as Error).message);
-    }
-  }
-  if (!data) throw new Error(`Gemini request failed for every model: ${failures.join(" | ")}`);
+  return new Promise((resolve, reject) => {
+    let launched = 0;
+    let failed = 0;
+    let done = false;
+    let next: ReturnType<typeof setTimeout> | undefined;
+    const finish = (fn: () => void) => {
+      if (done) return;
+      done = true;
+      clearTimeout(next);
+      clearTimeout(overall);
+      cancel.abort();
+      fn();
+    };
+    const launch = () => {
+      if (done || launched >= chain.length) return;
+      const model = chain[launched++];
+      clearTimeout(next);
+      if (launched < chain.length) next = setTimeout(launch, HEDGE_MS);
+      callModel(model, analysisBody(model, mediaType, base64), Math.max(1_000, deadline - Date.now()), cancel.signal).then(
+        (data) =>
+          finish(() => {
+            if (failures.length) console.warn(`[shape] Used ${model} after: ${failures.join(" | ")}`);
+            resolve(data);
+          }),
+        (err: Error) => {
+          if (done) return;
+          failures.push(err.message);
+          failed++;
+          if (failed === chain.length) finish(() => reject(new Error(`Gemini request failed for every model: ${failures.join(" | ")}`)));
+          else launch();
+        },
+      );
+    };
+    const overall = setTimeout(
+      () =>
+        finish(() =>
+          reject(new Error(`No Gemini model answered within ${TOTAL_BUDGET_MS / 1000}s: ${failures.join(" | ") || "no replies"}`)),
+        ),
+      TOTAL_BUDGET_MS,
+    );
+    launch();
+  });
+}
+
+export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
+  const data = await firstAnswer(photo.toString("base64"), mediaType);
 
   const candidate = data.candidates?.[0];
   const text = candidate?.content?.parts?.map((p) => p.text || "").join("") || "";
