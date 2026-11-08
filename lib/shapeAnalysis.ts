@@ -32,7 +32,11 @@ export function analyserConfigured() {
 /** Checks the key and model with a free lookup (no photo, no cost). */
 export async function analyserReachable(): Promise<"ok" | "bad_key" | "bad_model" | "unreachable"> {
   try {
-    const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}`, { headers: { "x-goog-api-key": env("GEMINI_API_KEY") }, cache: "no-store" });
+    const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}`, {
+      headers: { "x-goog-api-key": env("GEMINI_API_KEY") },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
     if (res.ok) return "ok";
     if (res.status === 404) return "bad_model";
     return "bad_key";
@@ -79,21 +83,39 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
+// Stop waiting well before the platform's 60-second limit, so a slow answer becomes a clear error.
+const ANSWER_TIMEOUT_MS = 40_000;
+
+// Gemini 3 models reason at length by default, which is slow and unnecessary for picking one of five
+// shapes; a low thinking level answers much faster.
+function thinkingConfig(model: string) {
+  return model.startsWith("gemini-3") ? { thinkingConfig: { thinkingLevel: "low" } } : {};
+}
+
 export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
-  const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}:generateContent`, {
-    method: "POST",
-    headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [
-        {
-          role: "user",
-          parts: [{ inlineData: { mimeType: mediaType, data: photo.toString("base64") } }, { text: "What is this person's body shape?" }],
-        },
-      ],
-      generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2 },
-    }),
-  });
+  const model = geminiModel();
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      signal: AbortSignal.timeout(ANSWER_TIMEOUT_MS),
+      headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents: [
+          {
+            role: "user",
+            parts: [{ inlineData: { mimeType: mediaType, data: photo.toString("base64") } }, { text: "What is this person's body shape?" }],
+          },
+        ],
+        generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, ...thinkingConfig(model) },
+      }),
+    });
+  } catch (err) {
+    if ((err as Error).name === "TimeoutError")
+      throw new Error(`Gemini (${model}) did not answer within ${ANSWER_TIMEOUT_MS / 1000} seconds.`);
+    throw err;
+  }
   if (!res.ok) {
     const raw = await res.text();
     let message = raw;
@@ -130,11 +152,19 @@ export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "ima
 const TEST_IMAGE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 /** Sends Gemini one real analysis request (a blank pixel, costs a tiny fraction of a cent) and reports what happened. */
-export async function testAnalysis(): Promise<{ ok: true; answer: string } | { ok: false; error: string }> {
+export async function testAnalysis(): Promise<
+  { ok: true; answer: string; seconds: number } | { ok: false; error: string; seconds: number }
+> {
+  const started = Date.now();
+  const seconds = () => Math.round((Date.now() - started) / 100) / 10;
   try {
     const result = await analysePhoto(Buffer.from(TEST_IMAGE, "base64"), "image/png");
-    return { ok: true, answer: result.status === "unclear" ? `unclear (expected for a blank image): ${result.reason}` : result.shape };
+    return {
+      ok: true,
+      answer: result.status === "unclear" ? `unclear (expected for a blank image): ${result.reason}` : result.shape,
+      seconds: seconds(),
+    };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: (err as Error).message, seconds: seconds() };
   }
 }
