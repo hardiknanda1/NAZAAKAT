@@ -6,7 +6,8 @@ import { SHAPE_IDS } from "./shapes";
 // to improve its products, which this site promises not to allow.
 
 const env = (name: string) => (process.env[name] || "").trim();
-export const geminiModel = () => env("GEMINI_MODEL") || "gemini-2.5-flash";
+// Google retires older models for new accounts (gemini-2.5-flash already is); GEMINI_MODEL overrides this.
+export const geminiModel = () => env("GEMINI_MODEL") || "gemini-3.8-flash";
 const apiBase = () => (env("GEMINI_API_BASE") || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
 
 export function analyserConfigured() {
