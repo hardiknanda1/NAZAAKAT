@@ -23,7 +23,7 @@ const RADIUS = 51;
 const TILT = 15;
 const PERSPECTIVE = 240;
 const RING_Y = 50; // ring centre from the top of the stage
-const PANEL = { w: 20.4, h: 27, rim: 0.55 };
+const PANEL = { w: 20.4, h: 24, rim: 0.55 };
 const START = shapes.findIndex((s) => s.id === "rectangle"); // the shape shown first
 const SPIN_MS = 5200; // one slow, graceful turn
 const TUCK_MS = 450; // the card shrinks back into the ring before it turns
@@ -80,7 +80,7 @@ function ShapeCard({ shape }: { shape: BodyShape }) {
   const index = shapes.indexOf(shape);
   return (
     <div
-      className="relative z-10 mx-auto w-[max(17.5rem,46cqw)] overflow-hidden rounded-[max(1.1rem,3cqw)] border-[max(2px,0.45cqw)] text-[#fbf3e8] shadow-[0_2cqw_5cqw_-1cqw_rgba(70,20,10,0.35)] transition-colors duration-700"
+      className="relative z-10 mx-auto w-[max(17.5rem,46cqw)] overflow-hidden rounded-[max(1.1rem,3cqw)] border-[max(2px,0.45cqw)] text-[#fbf3e8] shadow-[0_0_2.6cqw_0.3cqw_rgba(236,168,82,0.5),0_2cqw_5cqw_-1cqw_rgba(70,20,10,0.35)] transition-colors duration-700"
       style={{ borderColor: GOLD, backgroundColor: shape.tone.to }}
     >
       <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(170deg, transparent 0%, ${shape.tone.from} 85%)` }} />
@@ -220,15 +220,23 @@ export default function ShapeHero() {
           <div className="mx-auto w-full max-w-[38rem] min-w-0 lg:max-w-none">
             <div className="mx-auto [container-type:inline-size] lg:w-[min(100%,calc((100svh-28rem)*1.19))]">
               <div className="relative">
-                {/* Golden arch */}
+                {/* Golden arch: a warm, glowing disc with a gold rim that melts into the background below */}
                 <div
                   aria-hidden
-                  className="absolute top-[0.3cqw] left-1/2 h-[77cqw] w-[77cqw] -translate-x-1/2 rounded-full border-[0.22cqw] bg-[radial-gradient(circle_at_50%_40%,#fffaf2_0%,#fdf2e6_55%,rgba(253,240,233,0)_75%)]"
+                  className="absolute top-[0.3cqw] left-1/2 h-[77cqw] w-[77cqw] -translate-x-1/2 rounded-full border-[0.3cqw]"
                   style={{
-                    borderColor: GOLD,
-                    maskImage: "linear-gradient(to bottom, #000 40%, transparent 62%)",
-                    WebkitMaskImage: "linear-gradient(to bottom, #000 40%, transparent 62%)",
+                    borderColor: "#e8a95b",
+                    background: "radial-gradient(circle at 50% 28%, #fff6ea 0%, #fadfc2 34%, #f2c49b 58%, #eaa97a 80%, #e39a6c 100%)",
+                    boxShadow: "0 0 3cqw 0.6cqw rgba(232, 155, 80, 0.5), inset 0 0 3cqw rgba(255, 240, 220, 0.6)",
+                    maskImage: "linear-gradient(to bottom, #000 42%, rgba(0,0,0,0.6) 52%, transparent 66%)",
+                    WebkitMaskImage: "linear-gradient(to bottom, #000 42%, rgba(0,0,0,0.6) 52%, transparent 66%)",
                   }}
+                />
+                {/* Warm golden haze under the ring, as if it is lit from within */}
+                <div
+                  aria-hidden
+                  className="absolute left-1/2 h-[22cqw] w-[118cqw] -translate-x-1/2 rounded-[50%] blur-[2.5cqw]"
+                  style={{ top: `${RING_Y + 14}cqw`, background: "radial-gradient(ellipse at center, rgba(236,165,90,0.55) 0%, rgba(236,165,90,0.22) 45%, transparent 72%)" }}
                 />
 
                 {/* Figure and ring share one 3D space, so back panels pass behind her and front ones in front */}
@@ -263,7 +271,7 @@ export default function ShapeHero() {
                             transform: `rotateY(${-i * STEP}deg) translateZ(${RADIUS}cqw)`, // warm colours to the left, as in the artwork
                             // Polished gold rim, as on the supplied panel
                             background: "linear-gradient(165deg, #fbe39d 0%, #d9a93f 22%, #f5d27a 48%, #b8862b 74%, #f0cd78 100%)",
-                            boxShadow: "0 1cqw 2.2cqw rgba(110,45,30,0.22)",
+                            boxShadow: "0 0 1.3cqw rgba(236, 168, 82, 0.5), 0 1.2cqw 2.4cqw rgba(110,45,30,0.2)", // golden glow round the rim
                           }}
                         >
                           <div
