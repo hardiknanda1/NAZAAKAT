@@ -8,9 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import figure from "@/public/images/hero-figure.webp";
 import HeroFeatures from "./HeroFeatures";
 import { BOOK_HREF } from "@/lib/site";
-import { bodyPath, shapes, type BodyShape } from "@/lib/shapes";
-
-const GUESS_KEY = "nazaakat_shape_guess";
+import { GUESS_KEY, SHAPE_DISCOUNT_PERCENT, bodyPath, shapes, type BodyShape } from "@/lib/shapes";
 
 // The ring: 15 glowing panels, each standing for one of the five shapes (in order, three times round).
 // Proportions follow the original artwork: radius, tilt and perspective are in container units (cqw)
@@ -149,16 +147,20 @@ function GuessBand() {
           <p className="font-serif text-3xl leading-tight text-charcoal sm:text-4xl">
             Do you know your <span className="text-[#6b1424] italic">body shape?</span>
           </p>
-          <p className="mt-1 text-base text-muted">Take a guess. Soon you can upload a photo and find out if you were right.</p>
+          <p className="mt-1 text-base text-muted">
+            Take a guess, then add one photo to find out. Guess right for {SHAPE_DISCOUNT_PERCENT}% off your consultation.
+          </p>
         </div>
 
         <div aria-live="polite" className="min-h-[3.25rem] lg:max-w-xl">
           {picked ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
               <p className="text-base text-charcoal">
-                Locked in: <span className="font-serif text-xl text-chocolate italic">{picked.name}</span>. Our photo analyser is coming
-                soon. Guess right, and you unlock a discount on your consultation.
+                Locked in: <span className="font-serif text-xl text-chocolate italic">{picked.name}</span>.
               </p>
+              <Link href="/body-shape" className="btn-primary shrink-0 rounded-lg">
+                Find out with a photo <ArrowRight size={18} strokeWidth={1.5} aria-hidden />
+              </Link>
               <button
                 type="button"
                 onClick={() => choose(null)}

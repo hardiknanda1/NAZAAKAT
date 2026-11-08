@@ -29,7 +29,8 @@ async function BookingCard({ booking }: { booking: BookingRow }) {
   const when = formatWhen(booking.starts_at);
   const phone = booking.whatsapp;
 
-  const clientMessage = `Hello ${booking.name}, your NAZAAKAT style consultation is confirmed for ${when}.\n\nJoin your private video call here: ${links.customer}\n\nNo app or account needed. Just tap the link at your appointment time and allow your camera and microphone.`;
+  const discountLine = booking.discount_percent ? `\n\nYour ${booking.discount_percent}% body-shape discount has been applied.` : "";
+  const clientMessage = `Hello ${booking.name}, your NAZAAKAT style consultation is confirmed for ${when}.\n\nJoin your private video call here: ${links.customer}\n\nNo app or account needed. Just tap the link at your appointment time and allow your camera and microphone.${discountLine}`;
   const consultantMessage = `Hi, here are the details for the NAZAAKAT consultation with ${booking.name} on ${when}.\n\nOpen the consultant info page (sign in with the admin password): ${infoLink}`;
 
   let intake: Intake | null = null;
@@ -48,6 +49,11 @@ async function BookingCard({ booking }: { booking: BookingRow }) {
         <p className="text-base font-medium text-chocolate">{when} IST</p>
       </div>
       <p className="mt-1 text-base text-muted">+{phone}</p>
+      {booking.discount_percent ? (
+        <p className="mt-2 inline-flex items-center rounded-full bg-[#6b1424]/10 px-3 py-1 text-sm font-medium text-[#6b1424]">
+          {booking.discount_percent}% off: guessed their body shape
+        </p>
+      ) : null}
 
       <div className="mt-5 flex flex-wrap gap-3">
         <a

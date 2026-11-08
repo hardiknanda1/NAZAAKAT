@@ -27,6 +27,7 @@ create table if not exists public.bookings (
   created_at timestamptz not null default now()
 );
 alter table public.bookings add column if not exists room text;
+alter table public.bookings add column if not exists discount_percent int; -- set when a body-shape discount was used
 create index if not exists bookings_starts_at on public.bookings (starts_at);
 create unique index if not exists bookings_room on public.bookings (room);
 alter table public.bookings enable row level security;
@@ -51,6 +52,30 @@ alter table public.consultation_intake drop column if exists email;
 
 create index if not exists consultation_intake_booking on public.consultation_intake (booking_id);
 alter table public.consultation_intake enable row level security;
+
+-- Body-shape analyser: one row per photo analysed. The photo itself is never stored.
+create table if not exists public.shape_analyses (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  ip_hash text not null, -- keyed hash of the visitor's IP, only for the daily limit
+  guess text not null,
+  result text not null, -- a shape id, or 'unclear' when the photo could not be read
+  correct boolean not null default false -- a right guess that can earn the discount (first result only)
+);
+create index if not exists shape_analyses_ip on public.shape_analyses (ip_hash, created_at);
+alter table public.shape_analyses enable row level security;
+
+-- Discounts won by guessing right, claimed with a verified phone number: one per phone, one per analysis.
+create table if not exists public.shape_discounts (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  phone text not null unique, -- digits with country code, e.g. 919876543210
+  percent int not null,
+  analysis_id uuid not null unique references public.shape_analyses (id),
+  booking_id uuid references public.bookings (id),
+  used_at timestamptz
+);
+alter table public.shape_discounts enable row level security;
 
 -- Row level security is on with no policies anywhere above: only the website's server (secret key)
 -- can read or write any of this. Visitors and the publishable key see nothing.
