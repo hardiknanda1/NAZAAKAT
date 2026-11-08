@@ -6,23 +6,35 @@ import { SHAPE_IDS } from "./shapes";
 // to improve its products, which this site promises not to allow.
 
 const env = (name: string) => (process.env[name] || "").trim();
-// Google retires older models for new accounts (gemini-2.5-flash already is); GEMINI_MODEL overrides this.
-const DEFAULT_MODEL = "gemini-3.8-flash";
+// Models are tried in this order: when one is overloaded or unavailable (Google answers 503 under
+// heavy demand, and retires older models for new accounts), the next one takes over.
+const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-flash-latest"];
 const MODEL_NAME = /^[a-z0-9][a-z0-9.-]*$/;
 
-/** GEMINI_MODEL tidied up: "models/Gemini 3.8 Flash" or a quoted value still give "gemini-3.8-flash". */
-function configuredModel() {
+/** GEMINI_MODEL as model names, tidied: "models/Gemini 3.8 Flash" or quoted values still work. A comma list sets the order. */
+function configuredModels() {
   return env("GEMINI_MODEL")
-    .replace(/^["']|["']$/g, "")
-    .trim()
-    .replace(/^models\//i, "")
-    .toLowerCase()
-    .replace(/\s+/g, "-");
+    .split(",")
+    .map((m) =>
+      m
+        .replace(/^\s*["']|["']\s*$/g, "")
+        .trim()
+        .replace(/^models\//i, "")
+        .toLowerCase()
+        .replace(/\s+/g, "-"),
+    )
+    .filter(Boolean);
 }
 
-/** True when GEMINI_MODEL is set but still isn't a valid model name after tidying. */
-export const modelNameInvalid = () => Boolean(configuredModel()) && !MODEL_NAME.test(configuredModel());
-export const geminiModel = () => (configuredModel() && !modelNameInvalid() ? configuredModel() : DEFAULT_MODEL);
+/** True when GEMINI_MODEL is set but some of it isn't a valid model name after tidying. */
+export const modelNameInvalid = () => configuredModels().some((m) => !MODEL_NAME.test(m));
+
+/** Models to try, in order: any set in GEMINI_MODEL first, then the defaults as fallbacks. */
+export function modelChain() {
+  const chosen = configuredModels().filter((m) => MODEL_NAME.test(m));
+  return [...new Set([...chosen, ...DEFAULT_MODELS])];
+}
+export const geminiModel = () => modelChain()[0];
 const apiBase = () => (env("GEMINI_API_BASE") || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
 
 export function analyserConfigured() {
@@ -83,8 +95,9 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-// Stop waiting well before the platform's 60-second limit, so a slow answer becomes a clear error.
-const ANSWER_TIMEOUT_MS = 40_000;
+// The whole analysis must finish inside the route's 60-second limit, so each model gets a share of it.
+const TOTAL_BUDGET_MS = 48_000;
+const PER_MODEL_MS = 20_000;
 
 // Gemini 3 models reason at length by default, which is slow and unnecessary for picking one of five
 // shapes; a low thinking level answers much faster.
@@ -92,29 +105,29 @@ function thinkingConfig(model: string) {
   return model.startsWith("gemini-3") ? { thinkingConfig: { thinkingLevel: "low" } } : {};
 }
 
-export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
-  const model = geminiModel();
+function analysisBody(model: string, mediaType: string, base64: string) {
+  return {
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents: [
+      { role: "user", parts: [{ inlineData: { mimeType: mediaType, data: base64 } }, { text: "What is this person's body shape?" }] },
+    ],
+    generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, ...thinkingConfig(model) },
+  };
+}
+
+/** One generateContent call; throws a readable error for a timeout or a non-2xx answer. */
+async function callModel(model: string, body: object, timeoutMs: number): Promise<GeminiResponse> {
   let res: Response;
   try {
     res = await fetch(`${apiBase()}/v1beta/models/${model}:generateContent`, {
       method: "POST",
-      signal: AbortSignal.timeout(ANSWER_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [
-          {
-            role: "user",
-            parts: [{ inlineData: { mimeType: mediaType, data: photo.toString("base64") } }, { text: "What is this person's body shape?" }],
-          },
-        ],
-        generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, ...thinkingConfig(model) },
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
-    if ((err as Error).name === "TimeoutError")
-      throw new Error(`Gemini (${model}) did not answer within ${ANSWER_TIMEOUT_MS / 1000} seconds.`);
-    throw err;
+    if ((err as Error).name === "TimeoutError") throw new Error(`${model}: no answer within ${Math.round(timeoutMs / 1000)}s`);
+    throw new Error(`${model}: ${(err as Error).message}`);
   }
   if (!res.ok) {
     const raw = await res.text();
@@ -124,10 +137,29 @@ export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "ima
     } catch {
       // not JSON: keep the raw text
     }
-    throw new Error(`Gemini request failed (${res.status}): ${message.slice(0, 500)}`);
+    throw new Error(`${model}: ${res.status} ${message.slice(0, 300)}`);
   }
+  return (await res.json()) as GeminiResponse;
+}
 
-  const data = (await res.json()) as GeminiResponse;
+export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
+  const base64 = photo.toString("base64");
+  const started = Date.now();
+  const failures: string[] = [];
+  let data: GeminiResponse | null = null;
+  for (const model of modelChain()) {
+    const left = TOTAL_BUDGET_MS - (Date.now() - started);
+    if (left < 4_000) break;
+    try {
+      data = await callModel(model, analysisBody(model, mediaType, base64), Math.min(PER_MODEL_MS, left));
+      if (failures.length) console.warn(`[shape] Used ${model} after: ${failures.join(" | ")}`);
+      break;
+    } catch (err) {
+      failures.push((err as Error).message);
+    }
+  }
+  if (!data) throw new Error(`Gemini request failed for every model: ${failures.join(" | ")}`);
+
   const candidate = data.candidates?.[0];
   const text = candidate?.content?.parts?.map((p) => p.text || "").join("") || "";
   if (data.promptFeedback?.blockReason || !text) {
@@ -151,39 +183,31 @@ export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "ima
 // A blank 1 x 1 pixel PNG: enough to send Gemini a real request of the same kind as a visitor's photo.
 const TEST_IMAGE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-
 type Probe = { ok: boolean; seconds: number; detail: string };
 
-async function probe(body: object, timeoutMs = 30_000): Promise<Probe> {
+async function probe(model: string, timeoutMs = 25_000): Promise<Probe> {
   const started = Date.now();
   const seconds = () => Math.round((Date.now() - started) / 100) / 10;
   try {
-    const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}:generateContent`, {
-      method: "POST",
-      headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    const raw = await res.text();
-    if (!res.ok) return { ok: false, seconds: seconds(), detail: `${res.status}: ${raw.slice(0, 300)}` };
-    const data = JSON.parse(raw) as GeminiResponse;
+    const data = await callModel(model, analysisBody(model, "image/png", TEST_IMAGE), timeoutMs);
     const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
     return { ok: true, seconds: seconds(), detail: text.slice(0, 120) || `no text (finish: ${data.candidates?.[0]?.finishReason})` };
   } catch (err) {
-    const e = err as Error;
-    return { ok: false, seconds: seconds(), detail: e.name === "TimeoutError" ? `no answer within ${timeoutMs / 1000}s` : e.message };
+    return { ok: false, seconds: seconds(), detail: (err as Error).message };
   }
 }
 
 /**
- * Narrows down a failing analysis: lists the Flash models this key can use (free) and sends a few small
- * requests side by side, each adding one part of the real request, to see which part stalls or fails.
+ * Lists the Flash models this key can use (free) and sends the real analysis request (with a blank
+ * pixel) to every model in the fallback chain side by side, to show which ones answer right now.
  */
 export async function diagnose() {
-  const model = geminiModel();
-  const image = { inlineData: { mimeType: "image/png", data: TEST_IMAGE } };
-  const [models, textOnly, textLowThinking, imageNoSchema, fullRequest] = await Promise.all([
-    fetch(`${apiBase()}/v1beta/models?pageSize=200`, { headers: { "x-goog-api-key": env("GEMINI_API_KEY") }, signal: AbortSignal.timeout(10_000) })
+  const chain = modelChain();
+  const [models, ...results] = await Promise.all([
+    fetch(`${apiBase()}/v1beta/models?pageSize=200`, {
+      headers: { "x-goog-api-key": env("GEMINI_API_KEY") },
+      signal: AbortSignal.timeout(10_000),
+    })
       .then(async (r) => {
         const data = (await r.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
         return (data.models || [])
@@ -191,14 +215,9 @@ export async function diagnose() {
           .map((m) => m.name.replace(/^models\//, ""));
       })
       .catch((e: Error) => [`could not list models: ${e.message}`]),
-    probe({ contents: [{ role: "user", parts: [{ text: "Reply with the single word OK." }] }] }),
-    probe({ contents: [{ role: "user", parts: [{ text: "Reply with the single word OK." }] }], generationConfig: { ...thinkingConfig(model) } }),
-    probe({ contents: [{ role: "user", parts: [image, { text: "Describe this image in five words." }] }], generationConfig: { ...thinkingConfig(model) } }),
-    probe({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ role: "user", parts: [image, { text: "What is this person's body shape?" }] }],
-      generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, ...thinkingConfig(model) },
-    }),
+    ...chain.map((m) => probe(m)),
   ]);
-  return { model, flashModelsForThisKey: models, probes: { textOnly, textLowThinking, imageNoSchema, fullRequest } };
+  const probes = Object.fromEntries(chain.map((m, i) => [m, results[i]]));
+  const firstWorking = chain.find((m, i) => results[i].ok) ?? null;
+  return { chain, firstWorking, probes, flashModelsForThisKey: models };
 }

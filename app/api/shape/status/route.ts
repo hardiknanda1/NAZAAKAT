@@ -7,15 +7,15 @@ export const maxDuration = 60;
 
 // Quick check of the body-shape analyser setup (no secrets): open /api/shape/status in a browser.
 // It asks Google whether the key and model work, without sending a photo or costing anything.
-// Add ?test=1 to also send Gemini a few small real requests (a blank pixel; a tiny fraction of a cent) and
-// list the Flash models this key can use, to see exactly what works.
+// Add ?test=1 to also send the real analysis request (with a blank pixel; a tiny fraction of a cent) to
+// every model in the fallback chain, and list the Flash models this key can use.
 // The database tables it needs are checked by /api/intake/status.
 export async function GET(request: Request) {
   await connection(); // read env vars fresh on every request, never bake them in at build time
   const problems: string[] = [];
   let gemini: string = "not set";
   if (modelNameInvalid()) {
-    problems.push(`GEMINI_MODEL is set to "${(process.env.GEMINI_MODEL || "").trim()}", which isn't a model name, so ${geminiModel()} is used instead. Set it to just the name, e.g. gemini-3.8-flash, or leave it empty.`);
+    problems.push(`GEMINI_MODEL is set to "${(process.env.GEMINI_MODEL || "").trim()}", which isn't a model name, so ${geminiModel()} is used instead. Set it to just the name(s), e.g. gemini-3.8-flash, or leave it empty.`);
   }
   if (!analyserConfigured()) {
     problems.push("GEMINI_API_KEY is not set, so photos cannot be analysed.");
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   let photoTest: Awaited<ReturnType<typeof diagnose>> | undefined;
   if (gemini === "ok" && new URL(request.url).searchParams.get("test") === "1") {
     photoTest = await diagnose();
-    if (!photoTest.probes.fullRequest.ok) problems.push(`A real analysis request failed: ${photoTest.probes.fullRequest.detail}`);
+    if (!photoTest.firstWorking) problems.push("No model in the chain answered just now. Each model's reply is under photoTest.probes.");
   }
   return Response.json(
     {
