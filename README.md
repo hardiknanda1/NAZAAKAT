@@ -107,7 +107,7 @@ want to know about.
 ## Body-shape analyser and the guess-right discount (`/body-shape`)
 
 A visitor guesses their shape (from the home page hero or on the page), adds one photo, and Google's
-Gemini (`gemini-2.5-flash`) reads their proportions in a few seconds. The result shows their shape and
+Gemini (`gemini-3.8-flash` by default) reads their proportions in a few seconds. The result shows their shape and
 what flatters it.
 
 - **Guess right** and they unlock a discount (20% by default). Only then do we ask for anything: their
@@ -136,11 +136,12 @@ Setup:
 1. Run the current `supabase/schema.sql` again (safe to re-run).
 2. **Gemini:** create a key at aistudio.google.com and set `GEMINI_API_KEY` in Vercel. **Turn on billing
    for that Google project.** On the free tier, Google may use the photos it receives to improve its
-   products, which the page promises won't happen. Gemini 2.5 Flash costs a fraction of a rupee per photo.
+   products, which the page promises won't happen. Gemini Flash costs a fraction of a rupee per photo.
 3. Optional: `GEMINI_MODEL` to use another Gemini model, `NEXT_PUBLIC_SHAPE_DISCOUNT_PERCENT` to change
    the discount (default 20).
-4. Redeploy, then open `/api/shape/status`. It asks Google whether the key and model work (no photo, no
-   cost) and should say `"status": "ready"`.
+4. Redeploy, then open `/api/shape/status?test=1`. It sends Gemini one real request (a blank pixel, a
+   tiny fraction of a cent) and shows Google's exact reply; `photoTest.ok` should be `true`. If Google
+   retires the model for new accounts, its error names the replacement: set that as `GEMINI_MODEL`.
 
 There is no online payment on this site, so the discount is recorded on the booking and taken off the
 consultation fee when you charge it.

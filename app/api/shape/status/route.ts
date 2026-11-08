@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   } else {
     gemini = await analyserReachable();
     if (gemini === "bad_key") problems.push("Google rejected GEMINI_API_KEY. Check it was copied in full, from aistudio.google.com.");
-    if (gemini === "bad_model") problems.push(`The model "${geminiModel()}" was not found. Leave GEMINI_MODEL empty to use gemini-2.5-flash.`);
+    if (gemini === "bad_model") problems.push(`The model "${geminiModel()}" was not found. Leave GEMINI_MODEL empty to use the default, or set it to a model listed in Google AI Studio.`);
     if (gemini === "unreachable") problems.push("Could not reach Google's Gemini API from the server.");
   }
   let photoTest: Awaited<ReturnType<typeof testAnalysis>> | undefined;
@@ -27,7 +27,14 @@ export async function GET(request: Request) {
     if (!photoTest.ok) problems.push(`A real analysis request failed: ${photoTest.error}`);
   }
   return Response.json(
-    { status: problems.length ? "settings need fixing" : "ready", model: geminiModel(), gemini, photoTest, discountPercent: SHAPE_DISCOUNT_PERCENT, problems },
+    {
+      status: problems.length ? "settings need fixing" : "ready",
+      model: geminiModel(),
+      gemini,
+      photoTest: photoTest ?? "not run: add ?test=1 to send one real request. Only that proves the model is usable on this account.",
+      discountPercent: SHAPE_DISCOUNT_PERCENT,
+      problems,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
