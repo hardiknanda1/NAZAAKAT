@@ -25,7 +25,7 @@ const PERSPECTIVE = 240;
 const RING_Y = 50; // ring centre from the top of the stage
 const PANEL = { w: 20.4, h: 24, rim: 0.55 };
 const START = shapes.findIndex((s) => s.id === "rectangle"); // the shape shown first
-const SPIN_MS = 5200; // one slow, graceful turn
+const SPIN_MS = 3000; // one smooth, graceful turn
 const TUCK_MS = 450; // the card shrinks back into the ring before it turns
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
@@ -77,7 +77,6 @@ function MiniFigure({ shape }: { shape: BodyShape }) {
 
 // The card in front of the figure: the shape whose panel faces front.
 function ShapeCard({ shape }: { shape: BodyShape }) {
-  const index = shapes.indexOf(shape);
   return (
     <div
       className="relative z-10 mx-auto w-[max(17.5rem,46cqw)] overflow-hidden rounded-[max(1.1rem,3cqw)] border-[max(2px,0.45cqw)] text-[#fbf3e8] shadow-[0_0_2.6cqw_0.3cqw_rgba(236,168,82,0.5),0_2cqw_5cqw_-1cqw_rgba(70,20,10,0.35)] transition-colors duration-700"
@@ -98,7 +97,7 @@ function ShapeCard({ shape }: { shape: BodyShape }) {
             <MiniFigure shape={shape} />
             <div className="min-w-0 border-l pl-[max(0.8rem,2.4cqw)]" style={{ borderColor: `${GOLD}99` }}>
               <p className="text-[max(0.68rem,1.9cqw)] font-bold tracking-[0.18em] uppercase" style={{ color: "#e8c88f" }}>
-                Shape {String(index + 1).padStart(2, "0")} / {String(shapes.length).padStart(2, "0")}
+                Body shape
               </p>
               <h2 className="mt-[0.3em] font-serif text-[max(1.65rem,5.6cqw)] leading-none font-medium italic">{shape.name}</h2>
               <p className="mt-[0.5em] text-[max(0.76rem,2.1cqw)] leading-snug opacity-95">{shape.description}</p>
@@ -312,7 +311,7 @@ export default function ShapeHero() {
                     style={{ borderColor: GOLD, color: MAROON }}
                   >
                     <RotateCw size={15} strokeWidth={2} className={spinning ? "animate-spin" : ""} aria-hidden />
-                    {spinning ? "Spinning…" : "Spin"}
+                    {spinning ? "Exploring…" : "Explore"}
                   </button>
                 </div>
               </div>
