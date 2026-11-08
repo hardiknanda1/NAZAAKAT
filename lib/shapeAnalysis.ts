@@ -7,7 +7,22 @@ import { SHAPE_IDS } from "./shapes";
 
 const env = (name: string) => (process.env[name] || "").trim();
 // Google retires older models for new accounts (gemini-2.5-flash already is); GEMINI_MODEL overrides this.
-export const geminiModel = () => env("GEMINI_MODEL") || "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.8-flash";
+const MODEL_NAME = /^[a-z0-9][a-z0-9.-]*$/;
+
+/** GEMINI_MODEL tidied up: "models/Gemini 3.8 Flash" or a quoted value still give "gemini-3.8-flash". */
+function configuredModel() {
+  return env("GEMINI_MODEL")
+    .replace(/^["']|["']$/g, "")
+    .trim()
+    .replace(/^models\//i, "")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+}
+
+/** True when GEMINI_MODEL is set but still isn't a valid model name after tidying. */
+export const modelNameInvalid = () => Boolean(configuredModel()) && !MODEL_NAME.test(configuredModel());
+export const geminiModel = () => (configuredModel() && !modelNameInvalid() ? configuredModel() : DEFAULT_MODEL);
 const apiBase = () => (env("GEMINI_API_BASE") || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
 
 export function analyserConfigured() {
