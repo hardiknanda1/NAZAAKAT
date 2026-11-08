@@ -1,6 +1,4 @@
-// The five body shapes shown in the home page hero. They are listed left to right in the order of
-// the five front panels in public/images/hero-shapes.webp, and `panel` is that panel's outline in the
-// image's own pixels (1472 x 1068): top-left, top-right, bottom-right, bottom-left.
+// The five body shapes shown in the home page hero. The ring of panels repeats them in this order.
 
 export type Proportions = { shoulder: number; bust: number; waist: number; hip: number; thigh: number };
 type Pt = [number, number];
@@ -13,10 +11,7 @@ export type BodyShape = {
   flatters: string[];
   tone: { from: string; to: string; glow: string };
   figure: Proportions; // half-widths for the small outline on the card (200 x 400 viewBox)
-  panel: [Pt, Pt, Pt, Pt];
 };
-
-export const HERO_IMAGE_SIZE = { width: 1472, height: 1068 };
 
 export const shapes: BodyShape[] = [
   {
@@ -32,7 +27,6 @@ export const shapes: BodyShape[] = [
     ],
     tone: { from: "#3d0a5c", to: "#8a2db3", glow: "rgba(201, 64, 232, 0.55)" },
     figure: { shoulder: 35, bust: 34, waist: 27, hip: 50, thigh: 34 },
-    panel: [[134, 452], [303, 490], [300, 750], [133, 676]],
   },
   {
     id: "apple",
@@ -47,7 +41,6 @@ export const shapes: BodyShape[] = [
     ],
     tone: { from: "#0a2378", to: "#1d55d4", glow: "rgba(31, 111, 255, 0.55)" },
     figure: { shoulder: 40, bust: 43, waist: 41, hip: 40, thigh: 30 },
-    panel: [[314, 496], [574, 520], [569, 787], [316, 760]],
   },
   {
     id: "hourglass",
@@ -62,7 +55,6 @@ export const shapes: BodyShape[] = [
     ],
     tone: { from: "#03485a", to: "#0a8fa6", glow: "rgba(19, 222, 240, 0.55)" },
     figure: { shoulder: 42, bust: 41, waist: 25, hip: 44, thigh: 30 },
-    panel: [[590, 520], [888, 520], [888, 806], [590, 806]],
   },
   {
     id: "rectangle",
@@ -77,7 +69,6 @@ export const shapes: BodyShape[] = [
     ],
     tone: { from: "#033d36", to: "#0b7a68", glow: "rgba(18, 181, 154, 0.55)" },
     figure: { shoulder: 39, bust: 38, waist: 33, hip: 39, thigh: 29 },
-    panel: [[902, 516], [1160, 492], [1160, 770], [906, 800]],
   },
   {
     id: "inverted-triangle",
@@ -92,25 +83,8 @@ export const shapes: BodyShape[] = [
     ],
     tone: { from: "#6b4204", to: "#b97f0c", glow: "rgba(255, 204, 40, 0.6)" },
     figure: { shoulder: 50, bust: 44, waist: 30, hip: 34, thigh: 27 },
-    panel: [[1178, 490], [1340, 450], [1338, 700], [1181, 750]],
   },
 ];
-
-/** The panel's outline as an SVG points list. */
-export const panelPoints = (s: BodyShape) => s.panel.map(([x, y]) => `${x},${y}`).join(" ");
-
-/** The panel's bounding box as percentages of the image, for positioning over it. */
-export function panelBox(s: BodyShape) {
-  const xs = s.panel.map((p) => p[0]);
-  const ys = s.panel.map((p) => p[1]);
-  const { width: W, height: H } = HERO_IMAGE_SIZE;
-  return {
-    left: `${(Math.min(...xs) / W) * 100}%`,
-    top: `${(Math.min(...ys) / H) * 100}%`,
-    width: `${((Math.max(...xs) - Math.min(...xs)) / W) * 100}%`,
-    height: `${((Math.max(...ys) - Math.min(...ys)) / H) * 100}%`,
-  };
-}
 
 const CX = 100;
 const f = (n: number) => n.toFixed(1);
