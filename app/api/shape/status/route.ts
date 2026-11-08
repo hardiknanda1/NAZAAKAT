@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { analyserConfigured, analyserReachable, geminiModel, testAnalysis } from "@/lib/shapeAnalysis";
+import { analyserConfigured, analyserReachable, geminiModel, modelNameInvalid, testAnalysis } from "@/lib/shapeAnalysis";
 import { SHAPE_DISCOUNT_PERCENT } from "@/lib/shapes";
 
 // Gemini can take several seconds to look at a photo; don't let the platform cut it off early.
@@ -13,6 +13,9 @@ export async function GET(request: Request) {
   await connection(); // read env vars fresh on every request, never bake them in at build time
   const problems: string[] = [];
   let gemini: string = "not set";
+  if (modelNameInvalid()) {
+    problems.push(`GEMINI_MODEL is set to "${(process.env.GEMINI_MODEL || "").trim()}", which isn't a model name, so ${geminiModel()} is used instead. Set it to just the name, e.g. gemini-3.8-flash, or leave it empty.`);
+  }
   if (!analyserConfigured()) {
     problems.push("GEMINI_API_KEY is not set, so photos cannot be analysed.");
   } else {
