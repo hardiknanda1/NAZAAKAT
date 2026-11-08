@@ -25,7 +25,8 @@ const PERSPECTIVE = 240;
 const RING_Y = 50; // ring centre from the top of the stage
 const PANEL = { w: 20.4, h: 27, rim: 0.55 };
 const START = shapes.findIndex((s) => s.id === "rectangle"); // the shape shown first
-const SPIN_MS = 2600;
+const SPIN_MS = 5200; // one slow, graceful turn
+const TUCK_MS = 450; // the card shrinks back into the ring before it turns
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 
@@ -126,27 +127,37 @@ export default function ShapeHero() {
   const [front, setFront] = useState(START); // panel facing front, whose card is showing
   const [rotation, setRotation] = useState(START * STEP);
   const [spinning, setSpinning] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
+  const [cardOpen, setCardOpen] = useState(true);
+  const timers = useRef<number[]>([]);
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => {
+    const list = timers.current;
+    return () => list.forEach(clearTimeout);
+  }, []);
 
   const shape = shapeOf(front);
 
-  // Spins the ring a couple of turns until another shape's panel stops in front.
+  // The card tucks back into the ring, the ring makes one slow turn to another shape, and that
+  // shape's card rises out of it.
   function spin() {
     if (spinning) return;
     const target = randomPanel(front);
-    const next = rotation - mod(rotation - target * STEP, 360) - 360 * 2;
-    setRotation(next);
+    const next = rotation - mod(rotation - target * STEP, 360) - 360;
     if (reduce) {
+      setRotation(next);
       setFront(target);
       return;
     }
     setSpinning(true);
-    timer.current = window.setTimeout(() => {
-      setFront(target);
-      setSpinning(false);
-    }, SPIN_MS - 200);
+    setCardOpen(false);
+    timers.current.push(window.setTimeout(() => setRotation(next), TUCK_MS));
+    timers.current.push(
+      window.setTimeout(() => {
+        setFront(target);
+        setCardOpen(true);
+        setSpinning(false);
+      }, TUCK_MS + SPIN_MS),
+    );
   }
 
   return (
@@ -158,7 +169,16 @@ export default function ShapeHero() {
       >
         {/* Decorations from the artwork: bougainvillea top right, red silk bottom left */}
         <Image src={flowers} alt="" aria-hidden sizes="22rem" className="pointer-events-none absolute top-0 right-0 w-[min(46vw,21rem)]" />
-        <Image src={drape} alt="" aria-hidden sizes="70vw" className="pointer-events-none absolute bottom-0 left-0 hidden w-[min(68vw,70rem)] lg:block" />
+        <Image
+          src={drape}
+          alt=""
+          aria-hidden
+          sizes="80vw"
+          className="pointer-events-none absolute bottom-0 left-0 hidden w-[min(80vw,82rem)] lg:block"
+          style={{ maskImage: "linear-gradient(to right, #000 55%, transparent 96%)", WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 96%)" }}
+        />
+        {/* Soft hand-over into the next section instead of a hard edge */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-[#f1ebe3]" />
 
         <div className="container-x relative grid items-center gap-12 pt-32 pb-14 sm:pt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10 lg:pt-28 lg:pb-12">
           {/* Copy */}
@@ -167,17 +187,17 @@ export default function ShapeHero() {
               Personal Fashion Consulting
               <span aria-hidden className="hidden h-px w-20 min-w-0 shrink sm:block sm:w-28" style={{ background: "#89595e" }} />
             </p>
-            <h1 id="hero-title" className="mt-7 font-serif text-[2.9rem] leading-[1.06] font-medium text-[#1f1a18] sm:text-6xl lg:text-[3.7rem] xl:text-[4.5rem]">
+            <h1 id="hero-title" className="mt-7 font-serif lg:[@media(max-height:780px)]:mt-5 text-[2.9rem] leading-[1.06] font-medium text-[#1f1a18] sm:text-6xl lg:text-[3.7rem] xl:text-[4.5rem] lg:[@media(max-height:780px)]:text-[3.3rem]">
               Style is personal.
               <span className="block italic" style={{ color: MAROON }}>
                 Let us make it yours.
               </span>
             </h1>
-            <p className="mt-7 max-w-xl text-lg text-[#2e2826] sm:text-xl xl:text-[1.32rem]">
+            <p className="mt-7 max-w-xl text-lg text-[#2e2826] sm:text-xl xl:text-[1.32rem] lg:[@media(max-height:780px)]:mt-5 lg:[@media(max-height:780px)]:text-lg">
               Discover your proportions, understand your style, and find the looks that celebrate you. Personalised fashion guidance
               designed around you.
             </p>
-            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-4 sm:flex-row lg:[@media(max-height:780px)]:mt-7">
               <Link
                 href={BOOK_HREF}
                 className="inline-flex min-h-[3.75rem] items-center justify-center gap-3 px-7 text-[1.15rem] font-semibold whitespace-nowrap text-[#fdf0e9] transition-colors hover:brightness-125"
@@ -193,12 +213,12 @@ export default function ShapeHero() {
                 Explore Our Services
               </Link>
             </div>
-            <HeroFeatures iconClassName="h-11 w-11 text-[#6b0117]" labelClassName="text-base font-semibold sm:text-[1.15rem]" />
+            <HeroFeatures className="mt-14 lg:mt-12 lg:[@media(max-height:780px)]:mt-8" iconClassName="h-11 w-11 text-[#6b0117]" labelClassName="text-base font-semibold sm:text-[1.15rem]" />
           </div>
 
           {/* The figure in its ring of shape panels, the card in front, and the guess buttons */}
           <div className="mx-auto w-full max-w-[38rem] min-w-0 lg:max-w-none">
-            <div className="[container-type:inline-size]">
+            <div className="mx-auto [container-type:inline-size] lg:w-[min(100%,calc((100svh-28rem)*1.19))]">
               <div className="relative">
                 {/* Golden arch */}
                 <div
@@ -227,7 +247,7 @@ export default function ShapeHero() {
                       style={{
                         top: `${RING_Y}cqw`,
                         transform: `rotateX(${-TILT}deg) rotateY(${rotation}deg)`,
-                        transition: spinning ? `transform ${SPIN_MS}ms cubic-bezier(0.2, 0.7, 0.12, 1)` : "none",
+                        transition: spinning ? `transform ${SPIN_MS}ms cubic-bezier(0.45, 0.05, 0.2, 1)` : "none",
                       }}
                     >
                       {Array.from({ length: PANELS }, (_, i) => (
@@ -265,7 +285,15 @@ export default function ShapeHero() {
                 </div>
 
                 <div className="pt-[39cqw]">
+                <motion.div
+                  className="relative z-10"
+                  style={{ transformOrigin: "50% 35%" }}
+                  initial={false}
+                  animate={cardOpen ? { scale: 1, opacity: 1, y: 0 } : { scale: 0.3, opacity: 0, y: -24 }}
+                  transition={cardOpen ? { type: "spring", stiffness: 210, damping: 17 } : { duration: TUCK_MS / 1000, ease: [0.55, 0, 0.75, 0.3] }}
+                >
                   <ShapeCard shape={shape} />
+                </motion.div>
                 </div>
                 <div className="relative z-10 mt-3 flex justify-center">
                   <button

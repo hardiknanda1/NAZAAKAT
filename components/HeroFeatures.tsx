@@ -27,9 +27,17 @@ const features = [
 ];
 
 // The row of three icons under the hero's buttons, shared by both hero versions.
-export default function HeroFeatures({ iconClassName = "h-9 w-9 text-chocolate", labelClassName = "text-[0.95rem] font-medium sm:text-base" }: { iconClassName?: string; labelClassName?: string }) {
+export default function HeroFeatures({
+  className = "mt-14",
+  iconClassName = "h-9 w-9 text-chocolate",
+  labelClassName = "text-[0.95rem] font-medium sm:text-base",
+}: {
+  className?: string;
+  iconClassName?: string;
+  labelClassName?: string;
+}) {
   return (
-    <ul className="mt-14 grid max-w-xl grid-cols-3 divide-x divide-taupe/50">
+    <ul className={`grid max-w-xl grid-cols-3 divide-x divide-taupe/50 ${className}`}>
       {features.map(({ label, Icon }) => (
         <li key={label} className="flex flex-col items-center gap-3 px-2 text-center">
           <Icon className={iconClassName} aria-hidden />
