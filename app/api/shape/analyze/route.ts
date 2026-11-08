@@ -6,6 +6,9 @@ import { analysesSince, recordAnalysis, supabaseConfigured } from "@/lib/supabas
 // Reads the body shape in one photo and compares it with the visitor's guess.
 // The photo goes straight to the analysis and is never saved.
 
+// Gemini can take several seconds to look at a photo; don't let the platform cut it off early.
+export const maxDuration = 60;
+
 const MAX_BYTES = 5 * 1024 * 1024;
 const PER_DAY = 5; // analyses per network per day, to keep costs in check
 const FIRST_GUESS_DAYS = 30;
@@ -51,25 +54,33 @@ export async function POST(request: Request) {
     return Response.json({ error: "save_failed" }, { status: 502 });
   }
 
+  let result: Awaited<ReturnType<typeof analysePhoto>>;
   try {
-    const result = await analysePhoto(Buffer.from(await photo.arrayBuffer()), photo.type as ImageType);
-    const correct = result.status === "ok" && result.shape === guess;
-    const wins = correct && firstResult;
-    const row = await recordAnalysis({ ip_hash: ip, guess, result: result.status === "ok" ? result.shape : "unclear", correct: wins });
-
-    if (result.status === "unclear") return Response.json({ status: "unclear", reason: result.reason });
-    return Response.json({
-      status: "ok",
-      shape: result.shape,
-      confidence: result.confidence,
-      reason: result.reason,
-      correct,
-      firstResult,
-      // Only a winning guess gets an id, which is what the phone check needs to issue the discount.
-      ...(wins ? { analysisId: row.id, percent: SHAPE_DISCOUNT_PERCENT } : {}),
-    });
+    result = await analysePhoto(Buffer.from(await photo.arrayBuffer()), photo.type as ImageType);
   } catch (err) {
     console.error("[shape] The analysis failed.", err);
     return Response.json({ error: "analysis_failed" }, { status: 502 });
   }
+
+  const correct = result.status === "ok" && result.shape === guess;
+  const wins = correct && firstResult;
+  let row: Awaited<ReturnType<typeof recordAnalysis>>;
+  try {
+    row = await recordAnalysis({ ip_hash: ip, guess, result: result.status === "ok" ? result.shape : "unclear", correct: wins });
+  } catch (err) {
+    console.error("[shape] Analysed, but could not save the result.", err);
+    return Response.json({ error: "save_failed" }, { status: 502 });
+  }
+
+  if (result.status === "unclear") return Response.json({ status: "unclear", reason: result.reason });
+  return Response.json({
+    status: "ok",
+    shape: result.shape,
+    confidence: result.confidence,
+    reason: result.reason,
+    correct,
+    firstResult,
+    // Only a winning guess gets an id, which is what claiming the discount needs.
+    ...(wins ? { analysisId: row.id, percent: SHAPE_DISCOUNT_PERCENT } : {}),
+  });
 }
