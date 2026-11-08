@@ -12,7 +12,7 @@ import HeroFeatures from "./HeroFeatures";
 import { BOOK_HREF } from "@/lib/site";
 import { GUESS_KEY, SHAPE_DISCOUNT_PERCENT, bodyPath, shapes, type BodyShape } from "@/lib/shapes";
 
-const MAROON = "#6b0117";
+const ACCENT = "#49372e"; // the site-wide chocolate (--color-chocolate)
 const GOLD = "#daa764";
 
 // The ring: 15 panels in each shape's colour, repeating the five shapes round the ring. All sizes are
@@ -182,13 +182,13 @@ export default function ShapeHero() {
         <div className="container-x relative grid items-center gap-12 pt-32 pb-14 sm:pt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10 lg:pt-28 lg:pb-12">
           {/* Copy */}
           <div className="min-w-0 lg:pb-6">
-            <p className="flex items-center gap-4 text-[0.78rem] font-bold tracking-[0.28em] uppercase sm:whitespace-nowrap sm:text-[0.95rem] lg:text-[0.8rem] xl:text-[0.95rem]" style={{ color: "#771526" }}>
+            <p className="flex items-center gap-4 text-[0.78rem] font-bold tracking-[0.28em] uppercase sm:whitespace-nowrap sm:text-[0.95rem] lg:text-[0.8rem] xl:text-[0.95rem]" style={{ color: ACCENT }}>
               Personal Fashion Consulting
-              <span aria-hidden className="hidden h-px w-20 min-w-0 shrink sm:block sm:w-28" style={{ background: "#89595e" }} />
+              <span aria-hidden className="hidden h-px w-20 min-w-0 shrink sm:block sm:w-28" style={{ background: "#b7a493" }} />
             </p>
             <h1 id="hero-title" className="mt-7 font-serif lg:[@media(max-height:780px)]:mt-5 text-[2.9rem] leading-[1.06] font-medium text-[#1f1a18] sm:text-6xl lg:text-[3.7rem] xl:text-[4.5rem] lg:[@media(max-height:780px)]:text-[3.3rem]">
               Style is personal.
-              <span className="block italic" style={{ color: MAROON }}>
+              <span className="block italic" style={{ color: ACCENT }}>
                 Let us make it yours.
               </span>
             </h1>
@@ -199,20 +199,19 @@ export default function ShapeHero() {
             <div className="mt-9 flex flex-col gap-4 sm:flex-row lg:[@media(max-height:780px)]:mt-7">
               <Link
                 href={BOOK_HREF}
-                className="inline-flex min-h-[3.75rem] items-center justify-center gap-3 px-7 text-[1.15rem] font-semibold whitespace-nowrap text-[#fdf0e9] transition-colors hover:brightness-125"
-                style={{ background: MAROON }}
+                className="inline-flex min-h-[3.75rem] items-center justify-center gap-3 bg-chocolate px-7 text-[1.15rem] font-semibold whitespace-nowrap text-ivory transition-colors hover:bg-charcoal"
               >
                 Book Your Consultation <ArrowRight size={20} strokeWidth={1.75} aria-hidden />
               </Link>
               <Link
                 href="/#services"
-                className="inline-flex min-h-[3.75rem] items-center justify-center border-[1.5px] px-7 text-[1.15rem] font-semibold whitespace-nowrap transition-colors hover:bg-[#6b0117]/5"
-                style={{ borderColor: MAROON, color: MAROON }}
+                className="inline-flex min-h-[3.75rem] items-center justify-center border-[1.5px] px-7 text-[1.15rem] font-semibold whitespace-nowrap transition-colors hover:bg-chocolate/5"
+                style={{ borderColor: ACCENT, color: ACCENT }}
               >
                 Explore Our Services
               </Link>
             </div>
-            <HeroFeatures className="mt-14 lg:mt-12 lg:[@media(max-height:780px)]:mt-8" iconClassName="h-11 w-11 text-[#6b0117]" labelClassName="text-base font-semibold sm:text-[1.15rem]" />
+            <HeroFeatures className="mt-14 lg:mt-12 lg:[@media(max-height:780px)]:mt-8" iconClassName="h-11 w-11 text-chocolate" labelClassName="text-base font-semibold sm:text-[1.15rem]" />
           </div>
 
           {/* The figure in its ring of shape panels, the card in front, and the guess buttons */}
@@ -307,8 +306,8 @@ export default function ShapeHero() {
                     type="button"
                     onClick={spin}
                     disabled={spinning}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border bg-[#fdf6f2] px-4 text-sm font-semibold tracking-wide shadow-[0_6px_18px_-10px_rgba(107,1,23,0.5)] transition-colors hover:bg-[#f8dbcc] disabled:opacity-70"
-                    style={{ borderColor: GOLD, color: MAROON }}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border bg-ivory px-4 text-sm font-semibold tracking-wide shadow-[0_6px_18px_-10px_rgba(73,55,46,0.45)] transition-colors hover:bg-beige disabled:opacity-70"
+                    style={{ borderColor: GOLD, color: ACCENT }}
                   >
                     <RotateCw size={15} strokeWidth={2} className={spinning ? "animate-spin" : ""} aria-hidden />
                     {spinning ? "Exploring…" : "Explore"}
@@ -320,18 +319,18 @@ export default function ShapeHero() {
             {/* Guess your shape */}
             <div className="relative mt-6">
               <p className="flex items-center gap-4 font-serif text-[1.7rem] leading-tight text-[#1f1a18] sm:text-[2rem] lg:text-[1.8rem] xl:text-[2.15rem]">
-                <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#8a4a52" }} />
+                <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#b7a493" }} />
                 <span className="text-center sm:whitespace-nowrap lg:whitespace-normal xl:whitespace-nowrap">
                   Guess your{" "}
-                  <span className="italic" style={{ color: MAROON }}>
+                  <span className="italic" style={{ color: ACCENT }}>
                     Body shape
                   </span>{" "}
                   and{" "}
-                  <span className="whitespace-nowrap italic" style={{ color: MAROON }}>
+                  <span className="whitespace-nowrap italic" style={{ color: ACCENT }}>
                     get {SHAPE_DISCOUNT_PERCENT}% off
                   </span>
                 </span>
-                <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#8a4a52" }} />
+                <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#b7a493" }} />
               </p>
               <ul className="mt-6 flex flex-wrap justify-center gap-3" aria-label="Guess your body shape">
                 {shapes.map((s) => {
@@ -342,11 +341,11 @@ export default function ShapeHero() {
                         href="/body-shape"
                         onClick={() => saveGuess(s.id)}
                         className={`flex h-full min-h-[6.2rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border px-1.5 py-3 text-center text-[1rem] leading-tight font-medium transition-colors lg:text-[0.88rem] xl:text-[1.05rem] ${
-                          on ? "border-[#c9867f] bg-[#f8dbcc] font-semibold" : "border-[#f0d6cc] bg-[#fdf6f2]/80 text-charcoal hover:border-[#c9867f]"
+                          on ? "border-chocolate/50 bg-beige font-semibold" : "border-taupe/50 bg-ivory/80 text-charcoal hover:border-chocolate/50"
                         }`}
-                        style={on ? { color: MAROON } : undefined}
+                        style={on ? { color: ACCENT } : undefined}
                       >
-                        <ShapeIcon id={s.id} className="h-10 w-10 text-[#6b0117]" />
+                        <ShapeIcon id={s.id} className="h-10 w-10 text-chocolate" />
                         {s.name}
                       </Link>
                     </li>
