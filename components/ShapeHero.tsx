@@ -1,391 +1,312 @@
 "use client";
 
-import { MotionConfig, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import figure from "@/public/images/hero-figure.webp";
+import drape from "@/public/images/hero-drape.webp";
+import flowers from "@/public/images/hero-flowers.webp";
+import woman from "@/public/images/hero-woman.webp";
 import HeroFeatures from "./HeroFeatures";
 import { BOOK_HREF } from "@/lib/site";
 import { GUESS_KEY, SHAPE_DISCOUNT_PERCENT, bodyPath, shapes, type BodyShape } from "@/lib/shapes";
 
-// The ring: 15 glowing panels, each standing for one of the five shapes (in order, three times round).
-// Proportions follow the original artwork: radius, tilt and perspective are in container units (cqw)
-// of the stage, so everything scales together.
+const MAROON = "#6b0117";
+const GOLD = "#daa764";
+
+// The ring: 15 panels in each shape's colour, repeating the five shapes round the ring. All sizes are
+// in container units (cqw) of the stage, so the whole figure scales together.
 const PANELS = 15;
 const STEP = 360 / PANELS;
-const RADIUS = 41;
-const TILT = 10.7;
-const PERSPECTIVE = 133;
-const FIG = { top: 3, left: 34.5, width: 32.3 }; // figure image placement; its height is 66cqw
-const RING_Y = FIG.top + 27.6; // ring centre, measured from the top of the stage
-const START = 2; // the hourglass panel faces front first
-const SPIN_MS = 3600;
-const STEP_MS = 700;
-const CARD_MOVE = {
-  type: "spring",
-  stiffness: 120,
-  damping: 20,
-  mass: 0.9,
-} as const;
+const RADIUS = 48;
+const TILT = 15;
+const PERSPECTIVE = 240;
+const RING_Y = 50; // ring centre from the top of the stage
+const PANEL = { w: 19.6, h: 27 };
+const START = shapes.findIndex((s) => s.id === "rectangle"); // the shape shown first
+const SPIN_MS = 2600;
 
 const mod = (n: number, m: number) => ((n % m) + m) % m;
 const shapeOf = (panel: number) => shapes[panel % shapes.length];
-// Hues run round the ring like the artwork's rainbow, with cyan facing front at the start.
-const hueOf = (panel: number) => mod(186 - (panel - START) * STEP, 360);
 
-// A random panel whose shape differs from the one showing.
-function randomPanel(current: number) {
-  const options = Array.from({ length: PANELS }, (_, i) => i).filter((i) => i % shapes.length !== current % shapes.length);
+// One of the ring's panels for this shape, picked at random so the ring stops in a different place each time.
+function panelFor(shapeIndex: number) {
+  const options = Array.from({ length: PANELS }, (_, i) => i).filter((i) => i % shapes.length === shapeIndex);
   return options[Math.floor(Math.random() * options.length)];
 }
 
-function cardStyle(hue: number) {
-  return {
-    background: `linear-gradient(145deg, hsl(${hue} 72% 19%) 0%, hsl(${hue} 70% 33%) 100%)`,
-    boxShadow: `0 24px 60px -18px hsl(${hue} 90% 50% / 0.55), 0 0 40px -8px hsl(${hue} 90% 55% / 0.5)`,
-  };
-}
-
-function MiniFigure({ shape }: { shape: BodyShape }) {
+function ShapeIcon({ id, className = "" }: { id: string; className?: string }) {
+  const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinejoin: "round" as const };
   return (
-    <svg viewBox="40 50 120 260" className="h-12 w-6 shrink-0 text-[#f8f1e7]/80" aria-hidden>
-      <path d={bodyPath(shape.figure)} fill="none" stroke="currentColor" strokeWidth={5} strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      {id === "inverted-triangle" && <path d="M4 5h16l-8 14Z" {...common} />}
+      {id === "rectangle" && <rect x="6.5" y="4" width="11" height="16" {...common} />}
+      {id === "hourglass" && <path d="M6 4h12l-6 8 6 8H6l6-8Z" {...common} />}
+      {id === "pear" && <path d="M12 5l8 14H4Z" {...common} />}
+      {id === "apple" && <circle cx="12" cy="12" r="8" {...common} />}
     </svg>
   );
 }
 
-// The front panel, enlarged under the ring, with everything about that shape.
-function ShapeCard({ panel, busy, onStep }: { panel: number; busy: boolean; onStep: (dir: 1 | -1) => void }) {
-  const shape = shapeOf(panel);
-  const index = panel % shapes.length;
+function MiniFigure({ shape }: { shape: BodyShape }) {
   return (
-    <motion.div
-      layoutId="shape-card"
-      transition={CARD_MOVE}
-      className="relative overflow-hidden border-[6px] border-[#16100e] text-[#f8f1e7]"
-      style={{ ...cardStyle(hueOf(panel)), borderRadius: 12 }}
-    >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.2)_0%,transparent_34%)]"
-      />
-      <motion.div
-        key={panel}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.3 }}
-        className="relative p-5 sm:p-6"
-        aria-live="polite"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <MiniFigure shape={shape} />
-            <div>
-              <p className="text-xs font-medium tracking-[0.22em] whitespace-nowrap uppercase opacity-80">
-                Shape {String(index + 1).padStart(2, "0")} / {String(shapes.length).padStart(2, "0")}
-              </p>
-              <h2 className="mt-1 font-serif text-[1.9rem] leading-none font-medium">{shape.name}</h2>
-            </div>
-          </div>
-          <div className="-mt-1 -mr-2 flex shrink-0">
-            <button
-              type="button"
-              onClick={() => onStep(-1)}
-              disabled={busy}
-              aria-label="Previous shape"
-              className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/15 disabled:opacity-50"
-            >
-              <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => onStep(1)}
-              disabled={busy}
-              aria-label="Next shape"
-              className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/15 disabled:opacity-50"
-            >
-              <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
-            </button>
-          </div>
-        </div>
-        <p className="mt-3 text-base leading-relaxed opacity-90">{shape.description}</p>
-        <p className="mt-4 text-xs font-medium tracking-[0.22em] uppercase opacity-80">What flatters you</p>
-        <ul className="mt-2 grid gap-x-5 gap-y-1.5 text-[0.95rem] sm:grid-cols-2">
-          {shape.flatters.map((item) => (
-            <li key={item} className="flex gap-2.5 leading-snug">
-              <span className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rotate-45 bg-[#f1d9a6]" aria-hidden />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </motion.div>
-    </motion.div>
+    <svg viewBox="40 50 120 260" className="h-[max(3.6rem,10cqw)] w-[max(1.7rem,4.8cqw)] shrink-0" style={{ color: GOLD }} aria-hidden>
+      <path d={bodyPath(shape.figure)} fill="none" stroke="currentColor" strokeWidth={4} strokeLinejoin="round" />
+    </svg>
   );
 }
 
-function GuessBand() {
-  const [guess, setGuess] = useState<string | null>(null);
-
-  function choose(id: string | null) {
-    setGuess(id);
-    try {
-      if (id) localStorage.setItem(GUESS_KEY, id);
-      else localStorage.removeItem(GUESS_KEY);
-    } catch {
-      // Private mode or storage blocked: the guess just isn't remembered.
-    }
-  }
-
-  const picked = shapes.find((s) => s.id === guess);
-
+// The card in front of the figure: the shape whose panel faces front.
+function ShapeCard({ shape }: { shape: BodyShape }) {
+  const index = shapes.indexOf(shape);
   return (
-    <div className="container-x relative z-10 pb-14 lg:pb-16">
-      <div className="flex flex-col gap-6 border-t border-taupe/50 pt-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
-        <div className="shrink-0">
-          <p className="font-serif text-3xl leading-tight text-charcoal sm:text-4xl">
-            Do you know your <span className="text-[#6b1424] italic">body shape?</span>
-          </p>
-          <p className="mt-1 text-base text-muted">
-            Take a guess, then add one photo to find out. Guess right for {SHAPE_DISCOUNT_PERCENT}% off your consultation.
-          </p>
-        </div>
-
-        <div aria-live="polite" className="min-h-[3.25rem] lg:max-w-xl">
-          {picked ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-              <p className="text-base text-charcoal">
-                Locked in: <span className="font-serif text-xl text-chocolate italic">{picked.name}</span>.
+    <div
+      className="relative z-10 mx-auto w-[max(17.5rem,46cqw)] overflow-hidden rounded-[max(1.1rem,3cqw)] border-[max(2px,0.45cqw)] text-[#fbf3e8] shadow-[0_2cqw_5cqw_-1cqw_rgba(70,20,10,0.35)] transition-colors duration-700"
+      style={{ borderColor: GOLD, backgroundColor: shape.tone.to }}
+    >
+      <span aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(170deg, transparent 0%, ${shape.tone.from} 85%)` }} />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={shape.id}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.3 }}
+          className="relative px-[max(1.1rem,3.6cqw)] pt-[max(1rem,3.2cqw)] pb-[max(1.1rem,3.4cqw)]"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-[max(0.8rem,2.4cqw)]">
+            <MiniFigure shape={shape} />
+            <div className="min-w-0 border-l pl-[max(0.8rem,2.4cqw)]" style={{ borderColor: `${GOLD}99` }}>
+              <p className="text-[max(0.68rem,1.9cqw)] font-bold tracking-[0.18em] uppercase" style={{ color: "#e8c88f" }}>
+                Shape {String(index + 1).padStart(2, "0")} / {String(shapes.length).padStart(2, "0")}
               </p>
-              <Link href="/body-shape" className="btn-primary shrink-0 rounded-lg">
-                Find out with a photo <ArrowRight size={18} strokeWidth={1.5} aria-hidden />
-              </Link>
-              <button
-                type="button"
-                onClick={() => choose(null)}
-                className="shrink-0 text-base text-muted underline underline-offset-4 hover:text-chocolate"
-              >
-                Change guess
-              </button>
+              <h2 className="mt-[0.3em] font-serif text-[max(1.65rem,5.6cqw)] leading-none font-medium italic">{shape.name}</h2>
+              <p className="mt-[0.5em] text-[max(0.76rem,2.1cqw)] leading-snug opacity-95">{shape.description}</p>
             </div>
-          ) : (
-            <ul className="flex flex-wrap gap-2.5" aria-label="Guess your body shape">
-              {shapes.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => choose(s.id)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-taupe bg-ivory/70 px-4 text-base text-charcoal transition-colors hover:border-chocolate hover:bg-chocolate hover:text-ivory"
-                  >
-                    <span className="h-2 w-2 rotate-45" style={{ background: s.tone.to }} aria-hidden />
-                    {s.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+          </div>
+          <div className="my-[max(0.8rem,2.4cqw)] h-px" style={{ background: `${GOLD}66` }} />
+          <p className="text-[max(0.68rem,1.9cqw)] font-bold tracking-[0.24em] uppercase" style={{ color: "#e8c88f" }}>
+            What flatters you
+          </p>
+          <ul className="mt-[max(0.55rem,1.6cqw)] space-y-[max(0.4rem,1.2cqw)] text-[max(0.82rem,2.45cqw)] leading-snug">
+            {shape.flatters.slice(0, 3).map((item) => (
+              <li key={item} className="flex gap-[0.7em]">
+                <span className="mt-[0.4em] h-[0.5em] w-[0.5em] shrink-0 rotate-45" style={{ background: "#ecd3a0" }} aria-hidden />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
 
-type Box = { left: number; top: number; width: number; height: number };
-
 export default function ShapeHero() {
   const reduce = useReducedMotion();
   const [front, setFront] = useState(START); // panel facing front, whose card is showing
-  const [rotation, setRotation] = useState(-START * STEP);
-  const [duration, setDuration] = useState(0);
-  const [revealed, setRevealed] = useState(true); // card out under the ring, or tucked back into its panel
-  const [tuck, setTuck] = useState<Box | null>(null);
-  const [busy, setBusy] = useState(false);
-  const timers = useRef<number[]>([]);
-  const wrap = useRef<HTMLDivElement>(null);
-  const panels = useRef<(HTMLDivElement | null)[]>([]);
+  const [rotation, setRotation] = useState(START * STEP);
+  const [spinning, setSpinning] = useState(false);
+  const [guess, setGuess] = useState<string | null>(null);
+  const timer = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    const list = timers.current;
-    return () => list.forEach(clearTimeout);
-  }, []);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const later = (ms: number, fn: () => void) => void timers.current.push(window.setTimeout(fn, ms));
+  const shape = shapeOf(front);
 
-  // Where the front panel sits on screen, relative to the wheel, so the card can shrink into it.
-  function frontBox(): Box | null {
-    const p = panels.current[front]?.getBoundingClientRect();
-    const w = wrap.current?.getBoundingClientRect();
-    if (!p || !w) return null;
-    return {
-      left: p.left - w.left,
-      top: p.top - w.top,
-      width: p.width,
-      height: p.height,
-    };
-  }
-
-  // Turns the ring so `target` faces front, adding full turns for a spin.
-  function turnTo(target: number, turns: number) {
-    if (busy) return;
-    const offset = mod(target * STEP + rotation, 360);
-    const next = turns > 0 ? rotation - offset - 360 * turns : offset > 180 ? rotation + (360 - offset) : rotation - offset;
+  // Picking a shape locks in the guess and spins the ring until one of that shape's panels faces front.
+  function pick(id: string) {
+    if (spinning) return;
+    setGuess(id);
+    try {
+      localStorage.setItem(GUESS_KEY, id);
+    } catch {
+      // storage blocked: the guess just isn't remembered
+    }
+    const s = shapes.findIndex((x) => x.id === id);
+    if (s === front % shapes.length) return;
+    const target = panelFor(s);
+    const next = rotation - mod(rotation - target * STEP, 360) - 360 * 2;
+    setRotation(next);
     if (reduce) {
-      setRotation(next);
       setFront(target);
       return;
     }
-    const ms = turns > 0 ? SPIN_MS : STEP_MS;
-    setBusy(true);
-    setTuck(frontBox());
-    setRevealed(false); // the card flies back into the front panel first
-    later(480, () => {
-      setDuration(ms);
-      setRotation(next);
-    });
-    later(480 + ms + 120, () => {
+    setSpinning(true);
+    timer.current = window.setTimeout(() => {
       setFront(target);
-      setRevealed(true);
-      setBusy(false);
-    });
+      setSpinning(false);
+    }, SPIN_MS - 200);
   }
 
-  const spin = () => turnTo(randomPanel(front), 2);
-  const step = (dir: 1 | -1) => turnTo(mod(front + dir, PANELS), 0);
+  const picked = shapes.find((s) => s.id === guess);
 
   return (
     <MotionConfig reducedMotion="user">
       <section
         id="home"
         aria-labelledby="hero-title"
-        className="relative overflow-hidden bg-[linear-gradient(to_bottom,transparent_60%,#f1ebe3),linear-gradient(100deg,#f6f1eb_0%,#f2eae2_55%,#ede4db_100%)]"
+        className="relative overflow-hidden bg-[#fdf0e9] bg-[radial-gradient(60%_55%_at_72%_38%,#fff8f1_0%,transparent_70%),linear-gradient(115deg,#fdf1ea_0%,#fdf0e9_40%,#fbeae2_100%)]"
       >
-        <div className="container-x relative z-10 grid items-center gap-10 pt-32 pb-12 sm:pt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pt-32">
-          {/* Copy: the original hero */}
-          <div>
-            <p className="eyebrow">Personal Fashion Consulting</p>
-            <h1
-              id="hero-title"
-              className="mt-6 font-serif text-[2.9rem] leading-[1.05] font-medium text-charcoal sm:text-6xl lg:text-[3.1rem] xl:text-[4.1rem]"
-            >
-              Style is personal.
-              <span className="mt-1 block text-chocolate italic">Let us make it yours.</span>
-            </h1>
-            <p className="mt-8 max-w-xl text-lg text-muted sm:text-xl">
-              Discover your proportions, understand your style, and find the looks that celebrate you. Personalised fashion guidance
-              designed around <em className="font-serif text-[1.12em] text-chocolate italic">you</em>.
+        {/* Decorations from the artwork: bougainvillea top right, red silk bottom left */}
+        <Image src={flowers} alt="" aria-hidden sizes="16rem" className="pointer-events-none absolute top-0 right-0 w-[min(34vw,15.5rem)]" />
+        <Image src={drape} alt="" aria-hidden sizes="60vw" className="pointer-events-none absolute bottom-0 left-0 hidden w-[min(58vw,62rem)] lg:block" />
+
+        <div className="container-x relative grid items-center gap-12 pt-32 pb-14 sm:pt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10 lg:pt-28 lg:pb-12">
+          {/* Copy */}
+          <div className="min-w-0 lg:pb-6">
+            <p className="flex items-center gap-4 text-[0.78rem] font-bold tracking-[0.28em] uppercase sm:whitespace-nowrap sm:text-[0.95rem] lg:text-[0.8rem] xl:text-[0.95rem]" style={{ color: "#771526" }}>
+              Personal Fashion Consulting
+              <span aria-hidden className="hidden h-px w-20 min-w-0 shrink sm:block sm:w-28" style={{ background: "#89595e" }} />
             </p>
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap">
-              <Link href={BOOK_HREF} className="btn-primary text-lg">
-                Book Your Consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
+            <h1 id="hero-title" className="mt-7 font-serif text-[2.9rem] leading-[1.06] font-medium text-[#1f1a18] sm:text-6xl lg:text-[3.7rem] xl:text-[4.5rem]">
+              Style is personal.
+              <span className="block italic" style={{ color: MAROON }}>
+                Let us make it yours.
+              </span>
+            </h1>
+            <p className="mt-7 max-w-xl text-lg text-[#2e2826] sm:text-xl xl:text-[1.32rem]">
+              Discover your proportions, understand your style, and find the looks that celebrate you. Personalised fashion guidance
+              designed around you.
+            </p>
+            <div className="mt-9 flex flex-col gap-4 sm:flex-row">
+              <Link
+                href={BOOK_HREF}
+                className="inline-flex min-h-[3.75rem] items-center justify-center gap-3 px-7 text-[1.15rem] font-semibold whitespace-nowrap text-[#fdf0e9] transition-colors hover:brightness-125"
+                style={{ background: MAROON }}
+              >
+                Book Your Consultation <ArrowRight size={20} strokeWidth={1.75} aria-hidden />
               </Link>
-              <Link href="/#services" className="btn-secondary text-lg">
+              <Link
+                href="/#services"
+                className="inline-flex min-h-[3.75rem] items-center justify-center border-[1.5px] px-7 text-[1.15rem] font-semibold whitespace-nowrap transition-colors hover:bg-[#6b0117]/5"
+                style={{ borderColor: MAROON, color: MAROON }}
+              >
                 Explore Our Services
               </Link>
             </div>
-
-            <HeroFeatures />
+            <HeroFeatures iconClassName="h-11 w-11 text-[#6b0117]" labelClassName="text-base font-semibold sm:text-[1.15rem]" />
           </div>
 
-          {/* The figure in its ring of shape panels, with the front panel's card */}
-          <div ref={wrap} className="relative mx-auto w-full max-w-[36rem]">
+          {/* The figure in its ring of shape panels, the card in front, and the guess buttons */}
+          <div className="mx-auto w-full max-w-[38rem] min-w-0 lg:max-w-none">
             <div className="[container-type:inline-size]">
-              <div
-                className="relative h-[70cqw]"
-                style={{
-                  perspective: `${PERSPECTIVE}cqw`,
-                  perspectiveOrigin: `50% ${RING_Y}cqw`,
-                }}
-              >
+              <div className="relative">
+                {/* Golden arch */}
                 <div
                   aria-hidden
-                  className="absolute top-[4cqw] left-1/2 h-[64cqw] w-[64cqw] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#fbf3ea_0%,rgba(246,236,226,0.7)_45%,transparent_70%)]"
+                  className="absolute top-[0.3cqw] left-1/2 h-[77cqw] w-[77cqw] -translate-x-1/2 rounded-full border-[0.22cqw] bg-[radial-gradient(circle_at_50%_40%,#fffaf2_0%,#fdf2e6_55%,rgba(253,240,233,0)_75%)]"
+                  style={{
+                    borderColor: GOLD,
+                    maskImage: "linear-gradient(to bottom, #000 40%, transparent 62%)",
+                    WebkitMaskImage: "linear-gradient(to bottom, #000 40%, transparent 62%)",
+                  }}
                 />
-                <div className="absolute inset-0 [transform-style:preserve-3d]">
-                  <Image
-                    src={figure}
-                    alt="Silhouette of a woman encircled by a ring of glowing colour panels, one for each body shape"
-                    sizes="(min-width: 1024px) 18rem, 33vw"
-                    preload
-                    className="absolute h-auto"
-                    style={{
-                      top: `${FIG.top}cqw`,
-                      left: `${FIG.left}cqw`,
-                      width: `${FIG.width}cqw`,
-                      maskImage: "linear-gradient(to bottom, #000 78%, transparent 97%)",
-                      WebkitMaskImage: "linear-gradient(to bottom, #000 78%, transparent 97%)",
-                    }}
-                  />
-                  <div
-                    aria-hidden
-                    className="absolute left-1/2 [transform-style:preserve-3d]"
-                    style={{
-                      top: `${RING_Y}cqw`,
-                      transform: `rotateX(${-TILT}deg) rotateY(${rotation}deg)`,
-                      transition: duration
-                        ? `transform ${duration}ms cubic-bezier(${duration === SPIN_MS ? "0.2, 0.7, 0.12, 1" : "0.45, 0, 0.2, 1"})`
-                        : "none",
-                    }}
-                  >
-                    {Array.from({ length: PANELS }, (_, i) => {
-                      const hue = hueOf(i);
-                      const lit = i === front && revealed && !busy;
-                      return (
+
+                {/* Figure and ring share one 3D space, so back panels pass behind her and front ones in front */}
+                <div className="absolute inset-x-0 top-0 h-[80cqw]" style={{ perspective: `${PERSPECTIVE}cqw`, perspectiveOrigin: `50% ${RING_Y}cqw` }}>
+                  <div className="absolute inset-0 [transform-style:preserve-3d]">
+                    <Image
+                      src={woman}
+                      alt="A woman in an ivory saree with her hair in a bun, inside a ring of colour panels, one for each body shape"
+                      sizes="(min-width: 1024px) 15rem, 36vw"
+                      preload
+                      className="absolute top-[2.5cqw] left-[34.2cqw] h-auto w-[35.6cqw]"
+                    />
+                    <div
+                      aria-hidden
+                      className="absolute left-1/2 [transform-style:preserve-3d]"
+                      style={{
+                        top: `${RING_Y}cqw`,
+                        transform: `rotateX(${-TILT}deg) rotateY(${rotation}deg)`,
+                        transition: spinning ? `transform ${SPIN_MS}ms cubic-bezier(0.2, 0.7, 0.12, 1)` : "none",
+                      }}
+                    >
+                      {Array.from({ length: PANELS }, (_, i) => (
                         <div
                           key={i}
-                          ref={(el) => {
-                            panels.current[i] = el;
-                          }}
-                          className="absolute -top-[7.8cqw] -left-[7.4cqw] h-[15.6cqw] w-[14.8cqw] rounded-[0.6cqw] border-[0.5cqw] border-[#0e0a09] transition-[outline-color] duration-500"
+                          className="absolute rounded-[0.7cqw] border-[0.32cqw]"
                           style={{
-                            transform: `rotateY(${i * STEP}deg) translateZ(${RADIUS}cqw)`,
-                            background: `radial-gradient(120% 90% at 50% 100%, hsl(${hue} 100% 66%) 0%, hsl(${hue} 92% 50%) 45%, hsl(${hue} 85% 34%) 100%)`,
-                            boxShadow: `0 0 2.6cqw hsl(${hue} 95% 55% / 0.55), inset 0 0 1.4cqw rgba(255,255,255,0.18)`,
-                            outline: `0.35cqw solid ${lit ? "rgba(255,255,255,0.9)" : "transparent"}`,
-                            outlineOffset: "-0.9cqw",
+                            width: `${PANEL.w}cqw`,
+                            height: `${PANEL.h}cqw`,
+                            left: `${-PANEL.w / 2}cqw`,
+                            top: `${-PANEL.h / 2}cqw`,
+                            transform: `rotateY(${-i * STEP}deg) translateZ(${RADIUS}cqw)`, // warm colours to the left, as in the artwork
+                            borderColor: "#e3c27f",
+                            backgroundColor: shapeOf(i).panel,
+                            backgroundImage:
+                              "linear-gradient(90deg, rgba(0,0,0,0.22) 0%, rgba(255,255,255,0.14) 28%, rgba(255,255,255,0.05) 62%, rgba(0,0,0,0.2) 100%), linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(0,0,0,0.12) 100%)",
+                            boxShadow: "0 1cqw 2cqw rgba(110,45,30,0.18)",
                           }}
                         />
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
+                </div>
+
+                <div className="pt-[39cqw]">
+                  <ShapeCard shape={shape} />
                 </div>
               </div>
             </div>
 
-            {/* Where the card tucks back into while the ring turns */}
-            {!revealed && tuck && (
-              <motion.div
-                layoutId="shape-card"
-                transition={{
-                  ...CARD_MOVE,
-                  opacity: { duration: 0.25, delay: 0.4 },
-                }}
-                className="pointer-events-none absolute z-20 border-2 border-[#16100e]"
-                style={{ ...tuck, ...cardStyle(hueOf(front)), borderRadius: 4 }}
-                initial={{ opacity: 1 }}
-                animate={{ opacity: 0 }}
-              />
-            )}
-
-            <div className="relative z-10 -mt-[15%] min-h-[22.5rem] sm:min-h-[18rem] lg:min-h-[19.5rem] xl:min-h-[18rem]">
-              {revealed && <ShapeCard panel={front} busy={busy} onStep={step} />}
-            </div>
-
-            <div className="relative z-10 mt-5 flex justify-center">
-              <button
-                type="button"
-                onClick={spin}
-                disabled={busy}
-                className="inline-flex min-h-12 items-center gap-2.5 rounded-full border border-chocolate/60 bg-ivory/80 px-6 text-base font-medium tracking-wide text-chocolate shadow-[0_10px_30px_-12px_rgba(73,55,46,0.35)] backdrop-blur transition-colors hover:bg-chocolate hover:text-ivory disabled:opacity-60"
-              >
-                <RotateCw size={18} strokeWidth={1.5} className={busy ? "animate-spin" : ""} aria-hidden />
-                {busy ? "Spinning…" : "Spin to discover a shape"}
-              </button>
+            {/* Guess your shape */}
+            <div className="relative mt-9">
+              <p className="flex items-center gap-4 font-serif text-[1.7rem] leading-tight text-[#1f1a18] sm:text-[2rem] lg:text-[1.8rem] xl:text-[2.15rem]">
+                <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#8a4a52" }} />
+                <span className="text-center sm:whitespace-nowrap lg:whitespace-normal xl:whitespace-nowrap">
+                  Guess your{" "}
+                  <span className="italic" style={{ color: MAROON }}>
+                    Body shape
+                  </span>{" "}
+                  and{" "}
+                  <span className="whitespace-nowrap italic" style={{ color: MAROON }}>
+                    get {SHAPE_DISCOUNT_PERCENT}% off
+                  </span>
+                </span>
+                <span aria-hidden className="h-px min-w-6 flex-1" style={{ background: "#8a4a52" }} />
+              </p>
+              <ul className="mt-6 flex flex-wrap justify-center gap-3" aria-label="Guess your body shape">
+                {shapes.map((s) => {
+                  const on = s.id === shape.id;
+                  return (
+                    <li key={s.id} className="w-[calc((100%-1.5rem)/3)] sm:w-[calc((100%-3rem)/5)]">
+                      <button
+                        type="button"
+                        onClick={() => pick(s.id)}
+                        disabled={spinning}
+                        aria-pressed={guess === s.id}
+                        className={`flex h-full min-h-[6.2rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border px-1.5 py-3 text-center text-[1rem] leading-tight font-medium lg:text-[0.88rem] xl:text-[1.05rem] transition-colors disabled:cursor-wait ${
+                          on ? "border-[#c9867f] bg-[#f8dbcc] font-semibold" : "border-[#f0d6cc] bg-[#fdf6f2]/80 text-charcoal hover:border-[#c9867f]"
+                        }`}
+                        style={on ? { color: MAROON } : undefined}
+                      >
+                        <ShapeIcon id={s.id} className="h-10 w-10 text-[#6b0117]" />
+                        {s.name}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div aria-live="polite" className="mt-4 min-h-7 text-center text-base text-charcoal">
+                {picked && !spinning && (
+                  <p>
+                    Locked in:{" "}
+                    <span className="font-serif text-lg italic" style={{ color: MAROON }}>
+                      {picked.name}
+                    </span>
+                    .{" "}
+                    <Link href="/body-shape" className="font-medium underline underline-offset-4" style={{ color: MAROON }}>
+                      Find out with a photo
+                    </Link>
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
-
-        <GuessBand />
       </section>
     </MotionConfig>
   );

@@ -1,4 +1,6 @@
-// The five body shapes shown in the home page hero. The ring of panels repeats them in this order.
+// The five body shapes shown in the home page hero, in the order of its guess buttons. The ring of
+// panels repeats them in this order. `id` is stored with guesses and analyses, so it never changes,
+// even where the display name does (pear is shown as "Triangle", apple as "Round").
 
 export type Proportions = { shoulder: number; bust: number; waist: number; hip: number; thigh: number };
 type Pt = [number, number];
@@ -9,38 +11,41 @@ export type BodyShape = {
   short: string;
   description: string;
   flatters: string[];
-  tone: { from: string; to: string; glow: string };
+  tone: { from: string; to: string; glow: string }; // the deep colours of the shape's card
+  panel: string; // the muted colour of its panels in the hero ring
   figure: Proportions; // half-widths for the small outline on the card (200 x 400 viewBox)
 };
 
 export const shapes: BodyShape[] = [
   {
-    id: "pear",
-    name: "Pear",
-    short: "Fuller hips",
-    description: "Hips wider than the shoulders, with a slimmer, delicate upper body.",
+    id: "inverted-triangle",
+    name: "Inverted Triangle",
+    short: "Broad shoulders",
+    description: "Shoulders broader than the hips, with a slim waist and long legs.",
     flatters: [
-      "Boat necks, embellished yokes and statement sleeves",
-      "A-line kurtas and softly flared skirts",
-      "Deeper shades below, colour and detail above",
-      "Straight or wide-leg trousers",
+      "V-necks and halter cuts that soften the shoulders",
+      "Flared lehengas, palazzos and A-line skirts",
+      "Volume and prints on the lower half",
+      "Simple shoulders and soft, fluid drapes",
     ],
-    tone: { from: "#3d0a5c", to: "#8a2db3", glow: "rgba(201, 64, 232, 0.55)" },
-    figure: { shoulder: 35, bust: 34, waist: 27, hip: 50, thigh: 34 },
+    tone: { from: "#0d3c40", to: "#165a5c", glow: "rgba(31, 95, 107, 0.45)" },
+    panel: "#2a6f70",
+    figure: { shoulder: 50, bust: 44, waist: 30, hip: 34, thigh: 27 },
   },
   {
-    id: "apple",
-    name: "Apple",
-    short: "Fuller middle",
-    description: "Fuller through the bust and middle, with slimmer arms and legs.",
+    id: "rectangle",
+    name: "Rectangle",
+    short: "Straight lines",
+    description: "Shoulders, waist and hips in one long, straight, athletic line.",
     flatters: [
-      "Empire waists and flowing A-line silhouettes",
-      "Deep V-necks that lengthen the torso",
-      "Longline jackets and open shrugs",
-      "Straight pants and knee-length hems that show your legs",
+      "Peplums, belts and wrap styles that shape a waist",
+      "Angrakhas and asymmetric hemlines",
+      "Layered dupattas and ruffles for soft curves",
+      "Textured fabrics and bold prints",
     ],
-    tone: { from: "#0a2378", to: "#1d55d4", glow: "rgba(31, 111, 255, 0.55)" },
-    figure: { shoulder: 40, bust: 43, waist: 41, hip: 40, thigh: 30 },
+    tone: { from: "#033227", to: "#0a4636", glow: "rgba(8, 67, 52, 0.45)" },
+    panel: "#2f7a5e",
+    figure: { shoulder: 39, bust: 38, waist: 33, hip: 39, thigh: 29 },
   },
   {
     id: "hourglass",
@@ -53,36 +58,39 @@ export const shapes: BodyShape[] = [
       "High-waisted trousers with tucked tops",
       "V and sweetheart necklines",
     ],
-    tone: { from: "#03485a", to: "#0a8fa6", glow: "rgba(19, 222, 240, 0.55)" },
+    tone: { from: "#4f0c1c", to: "#74172c", glow: "rgba(122, 20, 38, 0.45)" },
+    panel: "#8f2235",
     figure: { shoulder: 42, bust: 41, waist: 25, hip: 44, thigh: 30 },
   },
   {
-    id: "rectangle",
-    name: "Rectangle",
-    short: "Straight lines",
-    description: "Shoulders, waist and hips in one long, straight, athletic line.",
+    id: "pear",
+    name: "Triangle",
+    short: "Fuller hips",
+    description: "Hips wider than the shoulders, with a slimmer, delicate upper body.",
     flatters: [
-      "Peplums, belts and wrap styles that shape a waist",
-      "Layered dupattas and ruffles for soft curves",
-      "Angrakhas and asymmetric hemlines",
-      "Textured fabrics and bold prints",
+      "Boat necks, embellished yokes and statement sleeves",
+      "A-line kurtas and softly flared skirts",
+      "Deeper shades below, colour and detail above",
+      "Straight or wide-leg trousers",
     ],
-    tone: { from: "#033d36", to: "#0b7a68", glow: "rgba(18, 181, 154, 0.55)" },
-    figure: { shoulder: 39, bust: 38, waist: 33, hip: 39, thigh: 29 },
+    tone: { from: "#6a2320", to: "#8e3a31", glow: "rgba(208, 100, 95, 0.45)" },
+    panel: "#d4655f",
+    figure: { shoulder: 35, bust: 34, waist: 27, hip: 50, thigh: 34 },
   },
   {
-    id: "inverted-triangle",
-    name: "Inverted Triangle",
-    short: "Broad shoulders",
-    description: "Shoulders broader than the hips, with a slim waist and long legs.",
+    id: "apple",
+    name: "Round",
+    short: "Fuller middle",
+    description: "Fuller through the bust and middle, with slimmer arms and legs.",
     flatters: [
-      "V-necks and halter cuts that soften the shoulders",
-      "Flared lehengas, palazzos and A-line skirts",
-      "Volume and prints on the lower half",
-      "Simple shoulders and soft, fluid drapes",
+      "Empire waists and flowing A-line silhouettes",
+      "Deep V-necks that lengthen the torso",
+      "Longline jackets and open shrugs",
+      "Straight pants and knee-length hems that show your legs",
     ],
-    tone: { from: "#6b4204", to: "#b97f0c", glow: "rgba(255, 204, 40, 0.6)" },
-    figure: { shoulder: 50, bust: 44, waist: 30, hip: 34, thigh: 27 },
+    tone: { from: "#5c3d0a", to: "#7d5612", glow: "rgba(215, 162, 56, 0.45)" },
+    panel: "#d6a23c",
+    figure: { shoulder: 40, bust: 43, waist: 41, hip: 40, thigh: 30 },
   },
 ];
 
