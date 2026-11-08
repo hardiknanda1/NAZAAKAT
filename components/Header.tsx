@@ -49,7 +49,7 @@ export default function Header({ logo }: { logo: ReactNode }) {
                 <Link
                   href={item.href}
                   aria-current={item.href === pathname ? "page" : undefined}
-                  className="border-b-2 border-transparent py-2 text-[1rem] font-medium tracking-wide text-charcoal transition-colors hover:text-[#6b0117] aria-[current=page]:border-[#6b0117] aria-[current=page]:text-[#6b0117]"
+                  className="border-b-2 border-transparent py-2 text-[1rem] font-medium tracking-wide text-charcoal transition-colors hover:text-chocolate aria-[current=page]:border-chocolate aria-[current=page]:text-chocolate"
                 >
                   {item.label}
                 </Link>
@@ -59,7 +59,7 @@ export default function Header({ logo }: { logo: ReactNode }) {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href={BOOK_HREF} className="btn hidden min-h-12 bg-[#6b0117] px-6 text-[0.95rem] text-ivory hover:bg-[#4f0011] sm:inline-flex">
+          <Link href={BOOK_HREF} className="btn-primary hidden min-h-12 px-6 text-[0.95rem] sm:inline-flex">
             Book Consultation <ArrowRight size={18} strokeWidth={1.75} aria-hidden />
           </Link>
           <button
