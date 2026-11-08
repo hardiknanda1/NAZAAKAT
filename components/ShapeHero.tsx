@@ -174,7 +174,13 @@ export default function ShapeHero() {
           aria-hidden
           sizes="80vw"
           className="pointer-events-none absolute bottom-0 left-0 hidden w-[min(80vw,82rem)] lg:block"
-          style={{ maskImage: "linear-gradient(to right, #000 55%, transparent 96%)", WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 96%)" }}
+          style={{
+            // Fades out to the right, and softly at the top so the feature labels above stay readable.
+            maskImage: "linear-gradient(to right, #000 55%, transparent 96%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.35) 28%, #000 62%)",
+            WebkitMaskImage: "linear-gradient(to right, #000 55%, transparent 96%), linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.35) 28%, #000 62%)",
+            maskComposite: "intersect",
+            WebkitMaskComposite: "source-in",
+          }}
         />
         {/* Soft hand-over into the next section instead of a hard edge */}
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-[#f1ebe3]" />
