@@ -151,20 +151,54 @@ export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "ima
 // A blank 1 x 1 pixel PNG: enough to send Gemini a real request of the same kind as a visitor's photo.
 const TEST_IMAGE = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-/** Sends Gemini one real analysis request (a blank pixel, costs a tiny fraction of a cent) and reports what happened. */
-export async function testAnalysis(): Promise<
-  { ok: true; answer: string; seconds: number } | { ok: false; error: string; seconds: number }
-> {
+
+type Probe = { ok: boolean; seconds: number; detail: string };
+
+async function probe(body: object, timeoutMs = 30_000): Promise<Probe> {
   const started = Date.now();
   const seconds = () => Math.round((Date.now() - started) / 100) / 10;
   try {
-    const result = await analysePhoto(Buffer.from(TEST_IMAGE, "base64"), "image/png");
-    return {
-      ok: true,
-      answer: result.status === "unclear" ? `unclear (expected for a blank image): ${result.reason}` : result.shape,
-      seconds: seconds(),
-    };
+    const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const raw = await res.text();
+    if (!res.ok) return { ok: false, seconds: seconds(), detail: `${res.status}: ${raw.slice(0, 300)}` };
+    const data = JSON.parse(raw) as GeminiResponse;
+    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+    return { ok: true, seconds: seconds(), detail: text.slice(0, 120) || `no text (finish: ${data.candidates?.[0]?.finishReason})` };
   } catch (err) {
-    return { ok: false, error: (err as Error).message, seconds: seconds() };
+    const e = err as Error;
+    return { ok: false, seconds: seconds(), detail: e.name === "TimeoutError" ? `no answer within ${timeoutMs / 1000}s` : e.message };
   }
+}
+
+/**
+ * Narrows down a failing analysis: lists the Flash models this key can use (free) and sends a few small
+ * requests side by side, each adding one part of the real request, to see which part stalls or fails.
+ */
+export async function diagnose() {
+  const model = geminiModel();
+  const image = { inlineData: { mimeType: "image/png", data: TEST_IMAGE } };
+  const [models, textOnly, textLowThinking, imageNoSchema, fullRequest] = await Promise.all([
+    fetch(`${apiBase()}/v1beta/models?pageSize=200`, { headers: { "x-goog-api-key": env("GEMINI_API_KEY") }, signal: AbortSignal.timeout(10_000) })
+      .then(async (r) => {
+        const data = (await r.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+        return (data.models || [])
+          .filter((m) => /flash/i.test(m.name) && (m.supportedGenerationMethods || []).includes("generateContent"))
+          .map((m) => m.name.replace(/^models\//, ""));
+      })
+      .catch((e: Error) => [`could not list models: ${e.message}`]),
+    probe({ contents: [{ role: "user", parts: [{ text: "Reply with the single word OK." }] }] }),
+    probe({ contents: [{ role: "user", parts: [{ text: "Reply with the single word OK." }] }], generationConfig: { ...thinkingConfig(model) } }),
+    probe({ contents: [{ role: "user", parts: [image, { text: "Describe this image in five words." }] }], generationConfig: { ...thinkingConfig(model) } }),
+    probe({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: "user", parts: [image, { text: "What is this person's body shape?" }] }],
+      generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2, ...thinkingConfig(model) },
+    }),
+  ]);
+  return { model, flashModelsForThisKey: models, probes: { textOnly, textLowThinking, imageNoSchema, fullRequest } };
 }
