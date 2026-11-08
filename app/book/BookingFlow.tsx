@@ -16,7 +16,6 @@ const bookErrors: Record<string, string> = {
   need_name: "Please enter your name.",
   need_whatsapp: "Please enter a valid WhatsApp number.",
   bad_slot: "Please choose a time.",
-  discount_invalid: "Your body-shape discount could not be applied (it may already have been used). You can still book without it.",
 };
 
 function forgetDiscount() {
@@ -59,7 +58,10 @@ export default function BookingFlow() {
     void (async () => {
       try {
         const saved = JSON.parse(localStorage.getItem(DISCOUNT_KEY) || "null") as StoredDiscount | null;
-        if (saved?.id && saved.phone) setDiscount(saved);
+        if (saved?.id && saved.phone) {
+          setDiscount(saved);
+          setWhatsapp(`+${saved.phone}`);
+        }
       } catch {
         // no saved discount, or storage blocked
       }
@@ -95,13 +97,12 @@ export default function BookingFlow() {
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // With a discount, the booking must use the number it was verified with.
-        body: JSON.stringify({ slotId: slot.id, name, whatsapp: discount ? discount.phone : whatsapp, discountId: discount?.id }),
+        body: JSON.stringify({ slotId: slot.id, name, whatsapp }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "save_failed");
       setBookingId(data.bookingId);
-      if (discount) forgetDiscount();
+      if (data.discountPercent) forgetDiscount();
       setApplied(data.discountPercent ?? null);
       setStage("intake");
     } catch (err) {
@@ -111,10 +112,6 @@ export default function BookingFlow() {
         setSlot(null);
         setStage("slots");
         loadSlots();
-      } else if (code === "discount_invalid") {
-        forgetDiscount();
-        setDiscount(null);
-        setError(bookErrors.discount_invalid);
       } else {
         setError(bookErrors[code] || "We could not book that time. Please try again.");
       }
@@ -196,14 +193,15 @@ export default function BookingFlow() {
           {discount && (
             <div className="mt-6 flex flex-col gap-2 border border-[#6b1424]/30 bg-[#6b1424]/5 p-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-base text-charcoal">
-                <strong className="text-[#6b1424]">{discount.percent}% body-shape discount</strong> applied for +{discount.phone}.
+                Your <strong className="text-[#6b1424]">{discount.percent}% body-shape discount</strong> is saved to +{discount.phone}. Book
+                with this WhatsApp number and it comes off automatically.
               </p>
               <button
                 type="button"
-                onClick={() => setDiscount(null)}
+                onClick={() => setWhatsapp(`+${discount.phone}`)}
                 className="shrink-0 text-base text-muted underline underline-offset-4 hover:text-chocolate"
               >
-                Book without it
+                Use this number
               </button>
             </div>
           )}
@@ -222,14 +220,13 @@ export default function BookingFlow() {
             <label className="block">
               <span className="text-lg font-medium text-charcoal">WhatsApp Number (with country code)</span>
               <input
-                value={discount ? `+${discount.phone}` : whatsapp}
+                value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
-                readOnly={Boolean(discount)}
                 type="tel"
                 autoComplete="tel"
                 placeholder="+91 98765 43210"
                 required
-                className="mt-2 block min-h-14 w-full border border-taupe bg-white px-4 text-lg read-only:bg-beige/50 read-only:text-muted"
+                className="mt-2 block min-h-14 w-full border border-taupe bg-white px-4 text-lg"
               />
             </label>
           </div>

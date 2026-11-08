@@ -329,8 +329,12 @@ export async function createDiscount(row: Pick<ShapeDiscount, "phone" | "percent
   return rows[0];
 }
 
-export async function getDiscount(id: string): Promise<ShapeDiscount | null> {
-  const res = await check(await fetch(rest(`/shape_discounts?id=eq.${id}&select=*&limit=1`), { headers: headers(), cache: "no-store" }), "read discount");
+/** The unused discount saved to this phone number, if there is one. */
+export async function unusedDiscountForPhone(phone: string): Promise<ShapeDiscount | null> {
+  const res = await check(
+    await fetch(rest(`/shape_discounts?phone=eq.${phone}&booking_id=is.null&select=*&limit=1`), { headers: headers(), cache: "no-store" }),
+    "read discount",
+  );
   const rows: ShapeDiscount[] = await res.json();
   return rows[0] ?? null;
 }

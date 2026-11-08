@@ -21,14 +21,10 @@ const errors: Record<string, string> = {
   not_configured: "The analyser isn't switched on yet. Please message us on WhatsApp and we'll help you.",
   analysis_failed: "We couldn't analyse your photo just now. Please try again in a moment.",
   save_failed: "Something went wrong on our side. Please try again in a moment.",
-  need_phone: "Please enter a valid phone number, with the country code.",
+  need_phone: "Please enter a valid WhatsApp number.",
   bad_analysis: "This result can no longer be claimed. Please analyse your photo again.",
   already_claimed: "This discount has already been claimed.",
-  phone_used: "This phone number has already claimed a body-shape discount.",
-  otp_not_configured: "Text-message codes aren't switched on yet. Please message us on WhatsApp to claim your discount.",
-  send_failed: "We couldn't send the code. Please check the number and try again.",
-  wrong_code: "That code isn't right, or it has expired. Please check it or send a new one.",
-  verify_failed: "We couldn't check the code just now. Please try again.",
+  phone_used: "This number already has a body-shape discount saved.",
 };
 const message = (code: string) => errors[code] || "Something went wrong. Please check your connection and try again.";
 
@@ -79,8 +75,6 @@ export default function ShapeAnalyzer() {
   const [error, setError] = useState("");
 
   const [phone, setPhone] = useState("");
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [code, setCode] = useState("");
   const [claimError, setClaimError] = useState("");
   const [claiming, setClaiming] = useState(false);
   const [discount, setDiscount] = useState<StoredDiscount | null>(null);
@@ -148,41 +142,21 @@ export default function ShapeAnalyzer() {
     setError("");
   }
 
-  async function sendCode(e: React.FormEvent) {
+  // Saves the discount to the phone number: no code, no password. Booking with this WhatsApp
+  // number applies it automatically.
+  async function claim(e: React.FormEvent) {
     e.preventDefault();
     if (result?.status !== "ok" || !result.analysisId) return;
     setClaiming(true);
     setClaimError("");
     try {
-      const res = await fetch("/api/shape/otp/send", {
+      const res = await fetch("/api/shape/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ analysisId: result.analysisId, phone }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "send_failed");
-      setSentTo(data.phone);
-      setCode("");
-    } catch (err) {
-      setClaimError(message((err as Error).message));
-    } finally {
-      setClaiming(false);
-    }
-  }
-
-  async function verifyCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (result?.status !== "ok" || !result.analysisId || !sentTo) return;
-    setClaiming(true);
-    setClaimError("");
-    try {
-      const res = await fetch("/api/shape/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisId: result.analysisId, phone: sentTo, code }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "verify_failed");
+      if (!res.ok) throw new Error(data.error || "save_failed");
       setDiscount(data.discount);
       store(DISCOUNT_KEY, data.discount);
     } catch (err) {
@@ -323,7 +297,7 @@ export default function ShapeAnalyzer() {
                 {discount ? (
                   <div className="mt-4">
                     <p className="text-lg text-charcoal">
-                      Applied to +{discount.phone}. Book with this number and the discount comes off your consultation.
+                      Saved to +{discount.phone}. Book with this WhatsApp number and the discount comes off your consultation.
                     </p>
                     <Link href={BOOK_HREF} className="btn-primary mt-6 rounded-lg text-lg">
                       Book your consultation <ArrowRight size={20} strokeWidth={1.5} aria-hidden />
@@ -332,58 +306,26 @@ export default function ShapeAnalyzer() {
                 ) : (
                   <>
                     <p className="mt-2 text-lg text-muted">
-                      Just confirm your phone number to claim it. We&apos;ll text you a one-time code. No account, no password.
+                      Enter your WhatsApp number to save it. When you book with this number, the discount comes off your consultation
+                      automatically. No account, no password.
                     </p>
-                    {!sentTo ? (
-                      <form onSubmit={sendCode} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <label className="block flex-1">
-                          <span className="text-base font-medium text-charcoal">Phone number (with country code)</span>
-                          <input
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            type="tel"
-                            autoComplete="tel"
-                            placeholder="+91 98765 43210"
-                            required
-                            className="mt-1.5 block min-h-13 w-full border border-taupe bg-white px-4 text-lg"
-                          />
-                        </label>
-                        <button type="submit" disabled={claiming} className="btn-primary rounded-lg disabled:opacity-70">
-                          {claiming ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null} Send code
-                        </button>
-                      </form>
-                    ) : (
-                      <form onSubmit={verifyCode} className="mt-5">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                          <label className="block flex-1">
-                            <span className="text-base font-medium text-charcoal">Code sent to +{sentTo}</span>
-                            <input
-                              value={code}
-                              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                              inputMode="numeric"
-                              autoComplete="one-time-code"
-                              placeholder="6-digit code"
-                              required
-                              autoFocus
-                              className="mt-1.5 block min-h-13 w-full border border-taupe bg-white px-4 text-lg tracking-[0.3em]"
-                            />
-                          </label>
-                          <button type="submit" disabled={claiming} className="btn-primary rounded-lg disabled:opacity-70">
-                            {claiming ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null} Verify and apply
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSentTo(null);
-                            setClaimError("");
-                          }}
-                          className="mt-3 text-base text-muted underline underline-offset-4 hover:text-chocolate"
-                        >
-                          Change number or send a new code
-                        </button>
-                      </form>
-                    )}
+                    <form onSubmit={claim} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <label className="block flex-1">
+                        <span className="text-base font-medium text-charcoal">WhatsApp number</span>
+                        <input
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          type="tel"
+                          autoComplete="tel"
+                          placeholder="+91 98765 43210"
+                          required
+                          className="mt-1.5 block min-h-13 w-full border border-taupe bg-white px-4 text-lg"
+                        />
+                      </label>
+                      <button type="submit" disabled={claiming} className="btn-primary rounded-lg disabled:opacity-70">
+                        {claiming ? <Loader2 size={18} className="animate-spin" aria-hidden /> : null} Save my discount
+                      </button>
+                    </form>
                     <div aria-live="assertive">
                       {claimError && (
                         <p role="alert" className="mt-4 text-base text-[#a3182c]">

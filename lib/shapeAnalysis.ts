@@ -1,21 +1,29 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { z } from "zod";
 import { SHAPE_IDS } from "./shapes";
 
-// Reads a visitor's body shape from one photo, using Claude's vision. Server only: the API key never
-// reaches the browser, and the photo is sent straight to the API and not stored anywhere.
+// Reads a visitor's body shape from one photo with Google's Gemini (REST, no SDK). Server only: the
+// API key never reaches the browser, and the photo is sent straight to the API and not stored here.
+// Keep billing enabled on the Google project: on the free tier Google may use the photos it receives
+// to improve its products, which this site promises not to allow.
+
+const env = (name: string) => (process.env[name] || "").trim();
+export const geminiModel = () => env("GEMINI_MODEL") || "gemini-2.5-flash";
+const apiBase = () => (env("GEMINI_API_BASE") || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
 
 export function analyserConfigured() {
-  return Boolean((process.env.ANTHROPIC_API_KEY || "").trim());
+  return Boolean(env("GEMINI_API_KEY"));
 }
 
-const Result = z.object({
-  status: z.enum(["ok", "unclear"]),
-  shape: z.enum([...(SHAPE_IDS as [string, ...string[]]), "none"]),
-  confidence: z.enum(["high", "medium", "low"]),
-  reason: z.string(),
-});
+/** Checks the key and model with a free lookup (no photo, no cost). */
+export async function analyserReachable(): Promise<"ok" | "bad_key" | "bad_model" | "unreachable"> {
+  try {
+    const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}`, { headers: { "x-goog-api-key": env("GEMINI_API_KEY") }, cache: "no-store" });
+    if (res.ok) return "ok";
+    if (res.status === 404) return "bad_model";
+    return "bad_key";
+  } catch {
+    return "unreachable";
+  }
+}
 
 export type Analysis =
   | { status: "ok"; shape: string; confidence: "high" | "medium" | "low"; reason: string }
@@ -36,32 +44,59 @@ Use status "unclear" (and shape "none") when you cannot judge fairly, for exampl
 
 For status "ok", write "reason" as one or two warm, encouraging sentences to the person, in the second person, describing their proportions (for example "Your shoulders and hips are beautifully balanced, with a defined waist."). Never comment on weight, size, attractiveness or anything other than proportions.`;
 
-export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
-  const client = new Anthropic();
-  const response = await client.beta.messages.parse({
-    model: "claude-opus-5-5",
-    max_tokens: 8000,
-    // If a safety check declines the request, the API retries it on a suitable model by itself.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    system: SYSTEM,
-    output_config: { effort: "medium", format: betaZodOutputFormat(Result) },
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: photo.toString("base64") } },
-          { type: "text", text: "What is this person's body shape?" },
-        ],
-      },
-    ],
-  });
+const SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    status: { type: "STRING", enum: ["ok", "unclear"] },
+    shape: { type: "STRING", enum: [...SHAPE_IDS, "none"] },
+    confidence: { type: "STRING", enum: ["high", "medium", "low"] },
+    reason: { type: "STRING" },
+  },
+  required: ["status", "shape", "confidence", "reason"],
+  propertyOrdering: ["status", "shape", "confidence", "reason"],
+};
 
-  const out = response.parsed_output;
-  if (response.stop_reason === "refusal" || !out) {
-    console.error(`[shape] No usable answer (stop_reason: ${response.stop_reason}).`);
-    return { status: "unclear", reason: "We couldn't read this photo. Please try a clear, front-facing photo from shoulders to hips." };
+const UNREADABLE = "We couldn't read this photo. Please try a clear, front-facing photo from shoulders to hips.";
+
+type GeminiResponse = {
+  candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
+  promptFeedback?: { blockReason?: string };
+};
+
+export async function analysePhoto(photo: Buffer, mediaType: "image/jpeg" | "image/png" | "image/webp"): Promise<Analysis> {
+  const res = await fetch(`${apiBase()}/v1beta/models/${geminiModel()}:generateContent`, {
+    method: "POST",
+    headers: { "x-goog-api-key": env("GEMINI_API_KEY"), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [
+        {
+          role: "user",
+          parts: [{ inlineData: { mimeType: mediaType, data: photo.toString("base64") } }, { text: "What is this person's body shape?" }],
+        },
+      ],
+      generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, temperature: 0.2 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini request failed (${res.status}): ${await res.text()}`);
+
+  const data = (await res.json()) as GeminiResponse;
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text || "").join("") || "";
+  if (data.promptFeedback?.blockReason || !text) {
+    console.error(`[shape] No usable answer (block: ${data.promptFeedback?.blockReason}, finish: ${candidate?.finishReason}).`);
+    return { status: "unclear", reason: UNREADABLE };
   }
-  if (out.status === "unclear" || out.shape === "none") return { status: "unclear", reason: out.reason };
-  return { status: "ok", shape: out.shape, confidence: out.confidence, reason: out.reason };
+
+  let out: { status?: string; shape?: string; confidence?: string; reason?: string };
+  try {
+    out = JSON.parse(text);
+  } catch {
+    console.error("[shape] The answer was not valid JSON.");
+    return { status: "unclear", reason: UNREADABLE };
+  }
+  const reason = typeof out.reason === "string" && out.reason.trim() ? out.reason.trim().slice(0, 400) : UNREADABLE;
+  if (out.status !== "ok" || !out.shape || !SHAPE_IDS.includes(out.shape)) return { status: "unclear", reason };
+  const confidence = out.confidence === "high" || out.confidence === "low" ? out.confidence : "medium";
+  return { status: "ok", shape: out.shape, confidence, reason };
 }
