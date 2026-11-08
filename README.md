@@ -104,6 +104,45 @@ This is entirely best-effort: if Resend is not configured, or the email fails to
 the booking still goes through — the client is never shown an error over something only you would
 want to know about.
 
+## Body-shape analyser and the guess-right discount (`/body-shape`)
+
+A visitor guesses their shape (in the home page hero or on the page), adds one photo, and Claude's
+vision reads their proportions in a few seconds. The result shows their shape and what flatters it.
+
+- **Guess right** and they unlock a discount (20% by default). Only then do we ask for anything: their
+  phone number and a one-time code by text message. No sign-up, no password, no account. The verified
+  number gets the discount, and the booking page applies it when they book with that number.
+- **Guess wrong** and they still get their result, with a link to book.
+
+How it stays fair and cheap:
+
+- The photo goes straight to the analysis and is **never stored**; only the guess and the result are
+  kept (`shape_analyses`), with a keyed hash of the visitor's IP address.
+- Each network (IP address) gets 5 analyses a day, and only its **first readable result** in 30 days
+  can earn the discount, so a wrong guess can't be repeated with the answer it revealed. An unreadable
+  photo doesn't count, so people can retry with a clearer one.
+- A code is only texted for a right guess that hasn't been claimed, so the form can't be used to send
+  texts to any number. Each phone number can claim the discount once, each right guess once (enforced
+  by the database), and each discount works for one booking only, made with that same number.
+- The admin bookings page shows "20% off: guessed their body shape" on those bookings, and the
+  WhatsApp confirmation message mentions the discount.
+
+Setup:
+
+1. Run the current `supabase/schema.sql` again (it adds `shape_analyses`, `shape_discounts` and a
+   `discount_percent` column on bookings; safe to re-run).
+2. **Claude API:** create a key at console.anthropic.com and set `ANTHROPIC_API_KEY` in Vercel. Each
+   analysis is one request to Claude Opus 5.5 with one photo, roughly US$0.01 to 0.03.
+3. **Text codes (Twilio Verify):** create a Twilio account, then **Verify -> Services -> Create**, and set
+   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID` in Vercel. Twilio creates,
+   sends and checks the codes itself. Set `TWILIO_VERIFY_CHANNEL=whatsapp` to send codes on WhatsApp.
+   Without Twilio, local development accepts the code `123456`; production never does.
+4. Optional: `NEXT_PUBLIC_SHAPE_DISCOUNT_PERCENT` changes the discount (default 20).
+5. Redeploy, then open `/api/shape/status` (and `/api/intake/status` for the new tables).
+
+There is no online payment on this site, so the discount is recorded on the booking and taken off the
+consultation fee when you charge it.
+
 ## Booking (`/book`)
 
 A client picks an open date and time, enters their name and WhatsApp number, then is shown the
@@ -232,6 +271,9 @@ See `.env.example`. `NEXT_PUBLIC_*` values are public. Everything else is a serv
 | `MEETING_ROOM_SECRET` | Yes | Signs meeting and consultant links |
 | `ADMIN_PASSWORD` | Yes | The one password for everything under `/admin` |
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Yes | Availability, bookings, questionnaire, photos, catalogues |
+| `ANTHROPIC_API_KEY` | For the analyser | Reads the body shape from the visitor's photo |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | For the discount | One-time code that claims the discount (`TWILIO_VERIFY_CHANNEL` optional) |
+| `NEXT_PUBLIC_SHAPE_DISCOUNT_PERCENT` | Optional | Percent off for a right guess (default 20) |
 | `RESEND_API_KEY`, `NOTIFY_EMAIL` | Optional | Email yourself when a booking comes in |
 | `NOTIFY_FROM_EMAIL` | Optional | Send that email from a verified domain instead of Resend's sandbox sender |
 

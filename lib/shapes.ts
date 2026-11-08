@@ -117,3 +117,15 @@ export function bodyPath({ shoulder: s, bust: b, waist: w, hip: h, thigh: t }: P
   }
   return `${d} Z`;
 }
+
+export const SHAPE_IDS = shapes.map((s) => s.id);
+export const shapeById = (id: string | null | undefined) => shapes.find((s) => s.id === id) ?? null;
+
+// Discount for guessing your own body shape right. Public so the page and the server agree on it.
+const configuredPercent = Number(process.env.NEXT_PUBLIC_SHAPE_DISCOUNT_PERCENT);
+export const SHAPE_DISCOUNT_PERCENT = configuredPercent > 0 && configuredPercent < 100 ? Math.round(configuredPercent) : 20;
+
+// Browser storage keys shared by the hero, the analyser and the booking page.
+export const GUESS_KEY = "nazaakat_shape_guess";
+export const DISCOUNT_KEY = "nazaakat_discount";
+export type StoredDiscount = { id: string; phone: string; percent: number };

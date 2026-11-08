@@ -161,6 +161,7 @@ export type BookingRow = {
   status: "confirmed" | "cancelled";
   room: string;
   catalogue: Catalogue | null;
+  discount_percent: number | null;
   created_at: string;
 };
 
@@ -258,4 +259,104 @@ export async function clearCatalogueFolder(bookingId: string) {
     headers: headers({ "Content-Type": "application/json" }),
     body: JSON.stringify({ prefixes: files.map((f) => `${bookingId}/${f.name}`) }),
   });
+}
+
+// ---- Body-shape analyser and the discount for guessing right ----
+
+export type ShapeAnalysis = { id: string; created_at: string; ip_hash: string; guess: string; result: string; correct: boolean };
+export type ShapeDiscount = {
+  id: string;
+  created_at: string;
+  phone: string;
+  percent: number;
+  analysis_id: string;
+  booking_id: string | null;
+  used_at: string | null;
+};
+
+export async function recordAnalysis(row: Pick<ShapeAnalysis, "ip_hash" | "guess" | "result" | "correct">): Promise<ShapeAnalysis> {
+  const res = await check(
+    await fetch(rest("/shape_analyses"), {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
+      body: JSON.stringify(row),
+    }),
+    "record analysis",
+  );
+  const rows: ShapeAnalysis[] = await res.json();
+  return rows[0];
+}
+
+/** How many analyses this network ran since a time; with `resultsOnly`, only those that found a shape. */
+export async function analysesSince(ipHash: string, sinceIso: string, resultsOnly = false): Promise<number> {
+  const filter = resultsOnly ? "&result=neq.unclear" : "";
+  const res = await check(
+    await fetch(rest(`/shape_analyses?ip_hash=eq.${ipHash}&created_at=gte.${encodeURIComponent(sinceIso)}${filter}&select=id`), {
+      headers: headers(),
+      cache: "no-store",
+    }),
+    "count analyses",
+  );
+  return ((await res.json()) as unknown[]).length;
+}
+
+export async function getAnalysis(id: string): Promise<ShapeAnalysis | null> {
+  const res = await check(await fetch(rest(`/shape_analyses?id=eq.${id}&select=*&limit=1`), { headers: headers(), cache: "no-store" }), "read analysis");
+  const rows: ShapeAnalysis[] = await res.json();
+  return rows[0] ?? null;
+}
+
+/** The discount already issued for this phone number or this analysis, if any (each can have only one). */
+export async function existingDiscount(phone: string, analysisId: string): Promise<ShapeDiscount | null> {
+  const res = await check(
+    await fetch(rest(`/shape_discounts?or=(phone.eq.${phone},analysis_id.eq.${analysisId})&select=*&limit=1`), { headers: headers(), cache: "no-store" }),
+    "read discount",
+  );
+  const rows: ShapeDiscount[] = await res.json();
+  return rows[0] ?? null;
+}
+
+/** Issues the discount. Returns null if this phone or analysis already has one (the unique constraints decide). */
+export async function createDiscount(row: Pick<ShapeDiscount, "phone" | "percent" | "analysis_id">): Promise<ShapeDiscount | null> {
+  const res = await fetch(rest("/shape_discounts"), {
+    method: "POST",
+    headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
+    body: JSON.stringify(row),
+  });
+  if (res.status === 409) return null;
+  await check(res, "create discount");
+  const rows: ShapeDiscount[] = await res.json();
+  return rows[0];
+}
+
+export async function getDiscount(id: string): Promise<ShapeDiscount | null> {
+  const res = await check(await fetch(rest(`/shape_discounts?id=eq.${id}&select=*&limit=1`), { headers: headers(), cache: "no-store" }), "read discount");
+  const rows: ShapeDiscount[] = await res.json();
+  return rows[0] ?? null;
+}
+
+/**
+ * Marks the discount as used by this booking and records it on the booking. The update only matches
+ * an unused discount for the same phone, so it can never be applied twice, even by two requests at once.
+ */
+export async function redeemDiscount(id: string, phone: string, bookingId: string): Promise<number | null> {
+  const res = await check(
+    await fetch(rest(`/shape_discounts?id=eq.${id}&phone=eq.${phone}&booking_id=is.null`), {
+      method: "PATCH",
+      headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
+      body: JSON.stringify({ booking_id: bookingId, used_at: new Date().toISOString() }),
+    }),
+    "use discount",
+  );
+  const rows: ShapeDiscount[] = await res.json();
+  if (rows.length === 0) return null;
+  await check(
+    await fetch(rest(`/bookings?id=eq.${bookingId}`), {
+      method: "PATCH",
+      headers: headers({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+      body: JSON.stringify({ discount_percent: rows[0].percent }),
+    }),
+    "record booking discount",
+  );
+  return rows[0].percent;
 }

@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { CATALOGUE_BUCKET, PHOTO_BUCKET, supabaseConfigured } from "@/lib/supabase";
 
-const TABLES = ["booking_slots", "bookings", "consultation_intake"];
+const TABLES = ["booking_slots", "bookings", "consultation_intake", "shape_analyses", "shape_discounts"];
 const BUCKETS = [PHOTO_BUCKET, CATALOGUE_BUCKET];
 
 // Quick check of the Supabase setup (no secrets): open /api/intake/status in a browser.

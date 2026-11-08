@@ -31,7 +31,7 @@ export async function notifyNewBooking(booking: BookingRow) {
     <p>
       <strong>${escapeHtml(booking.name)}</strong><br>
       ${escapeHtml(when)} IST<br>
-      WhatsApp: +${escapeHtml(booking.whatsapp)}
+      WhatsApp: +${escapeHtml(booking.whatsapp)}${booking.discount_percent ? `<br>${booking.discount_percent}% body-shape discount applied` : ""}
     </p>
     <p><a href="${adminUrl}">Open the bookings page</a> to send the client their meeting link.</p>
   `;
@@ -48,7 +48,7 @@ export async function notifyNewBooking(booking: BookingRow) {
         to: [to],
         subject: `New booking: ${booking.name}, ${when}`,
         html,
-        text: `${booking.name}\n${when} IST\nWhatsApp: +${booking.whatsapp}\n\nOpen the bookings page: ${adminUrl}`,
+        text: `${booking.name}\n${when} IST\nWhatsApp: +${booking.whatsapp}${booking.discount_percent ? `\n${booking.discount_percent}% body-shape discount applied` : ""}\n\nOpen the bookings page: ${adminUrl}`,
       }),
     });
     if (!res.ok) {

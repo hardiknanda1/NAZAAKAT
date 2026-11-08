@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarDays, Clock, Loader2, MessageCircle } from "lucide-r
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Intake from "@/components/Intake";
+import { DISCOUNT_KEY, type StoredDiscount } from "@/lib/shapes";
 import { whatsappLink } from "@/lib/site";
 import { formatShort, formatTime, formatWhen } from "@/lib/time";
 
@@ -15,7 +16,16 @@ const bookErrors: Record<string, string> = {
   need_name: "Please enter your name.",
   need_whatsapp: "Please enter a valid WhatsApp number.",
   bad_slot: "Please choose a time.",
+  discount_invalid: "Your body-shape discount could not be applied (it may already have been used). You can still book without it.",
 };
+
+function forgetDiscount() {
+  try {
+    localStorage.removeItem(DISCOUNT_KEY);
+  } catch {
+    // storage blocked
+  }
+}
 
 export default function BookingFlow() {
   const [stage, setStage] = useState<Stage>("loading");
@@ -27,6 +37,8 @@ export default function BookingFlow() {
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [discount, setDiscount] = useState<StoredDiscount | null>(null); // claimed with the body-shape analyser
+  const [applied, setApplied] = useState<number | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
 
   // Starts in "loading" (the initial state above); this never sets it synchronously from an effect.
@@ -45,6 +57,12 @@ export default function BookingFlow() {
   // Only ever runs once, on mount; loadSlots is also called later, after a slot turns out to be taken.
   useEffect(() => {
     void (async () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(DISCOUNT_KEY) || "null") as StoredDiscount | null;
+        if (saved?.id && saved.phone) setDiscount(saved);
+      } catch {
+        // no saved discount, or storage blocked
+      }
       await loadSlots();
     })();
   }, []);
@@ -77,11 +95,14 @@ export default function BookingFlow() {
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotId: slot.id, name, whatsapp }),
+        // With a discount, the booking must use the number it was verified with.
+        body: JSON.stringify({ slotId: slot.id, name, whatsapp: discount ? discount.phone : whatsapp, discountId: discount?.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "save_failed");
       setBookingId(data.bookingId);
+      if (discount) forgetDiscount();
+      setApplied(data.discountPercent ?? null);
       setStage("intake");
     } catch (err) {
       const code = (err as Error).message;
@@ -90,6 +111,10 @@ export default function BookingFlow() {
         setSlot(null);
         setStage("slots");
         loadSlots();
+      } else if (code === "discount_invalid") {
+        forgetDiscount();
+        setDiscount(null);
+        setError(bookErrors.discount_invalid);
       } else {
         setError(bookErrors[code] || "We could not book that time. Please try again.");
       }
@@ -136,6 +161,7 @@ export default function BookingFlow() {
             Thank you. We will send your private video consultation link to your WhatsApp number shortly. Simply tap the
             link at your appointment time. No account or app download needed.
           </p>
+          {applied ? <p className="mt-3 text-lg font-medium text-[#6b1424]">Your {applied}% body-shape discount is applied.</p> : null}
           <Link href="/" className="btn-secondary mt-6 rounded-lg text-base">
             Return to Home
           </Link>
@@ -167,6 +193,20 @@ export default function BookingFlow() {
           <h2 ref={heading} tabIndex={-1} className="mt-5 font-serif text-3xl leading-tight font-medium text-charcoal outline-none sm:text-4xl">
             {formatWhen(slot.starts_at)}
           </h2>
+          {discount && (
+            <div className="mt-6 flex flex-col gap-2 border border-[#6b1424]/30 bg-[#6b1424]/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-base text-charcoal">
+                <strong className="text-[#6b1424]">{discount.percent}% body-shape discount</strong> applied for +{discount.phone}.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDiscount(null)}
+                className="shrink-0 text-base text-muted underline underline-offset-4 hover:text-chocolate"
+              >
+                Book without it
+              </button>
+            </div>
+          )}
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
             <label className="block">
               <span className="text-lg font-medium text-charcoal">Your name</span>
@@ -182,13 +222,14 @@ export default function BookingFlow() {
             <label className="block">
               <span className="text-lg font-medium text-charcoal">WhatsApp Number (with country code)</span>
               <input
-                value={whatsapp}
+                value={discount ? `+${discount.phone}` : whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
+                readOnly={Boolean(discount)}
                 type="tel"
                 autoComplete="tel"
                 placeholder="+91 98765 43210"
                 required
-                className="mt-2 block min-h-14 w-full border border-taupe bg-white px-4 text-lg"
+                className="mt-2 block min-h-14 w-full border border-taupe bg-white px-4 text-lg read-only:bg-beige/50 read-only:text-muted"
               />
             </label>
           </div>
