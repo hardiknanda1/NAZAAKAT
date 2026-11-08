@@ -266,27 +266,10 @@ export default function ShapeAnalyzer() {
 
         {result?.status === "ok" && found && (
           <div className="mt-8 space-y-6">
-            <div
-              className="overflow-hidden rounded-xl border-[6px] border-[#16100e] p-6 text-[#f8f1e7] sm:p-8"
-              style={{ background: `linear-gradient(145deg, ${found.tone.from} 0%, ${found.tone.to} 100%)` }}
-            >
-              <div className="flex items-center gap-5">
-                <Outline shape={found} className="h-24 w-12 shrink-0 text-[#f8f1e7]/85" />
-                <div>
-                  <p className="text-xs font-medium tracking-[0.22em] uppercase opacity-80">Your body shape</p>
-                  <p className="mt-1 font-serif text-4xl leading-none font-medium sm:text-5xl">{found.name}</p>
-                </div>
-              </div>
-              <p className="mt-5 text-lg leading-relaxed opacity-95">{result.reason}</p>
-              <p className="mt-5 text-xs font-medium tracking-[0.22em] uppercase opacity-80">What flatters you</p>
-              <ul className="mt-2 grid gap-x-6 gap-y-1.5 text-base sm:grid-cols-2">
-                {found.flatters.map((item) => (
-                  <li key={item} className="flex gap-2.5 leading-snug">
-                    <span className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rotate-45 bg-[#f1d9a6]" aria-hidden />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+            <div className="border border-taupe/60 bg-ivory p-6 sm:p-8">
+              <p className="eyebrow">Your body shape</p>
+              <p className="mt-2 font-serif text-4xl leading-none font-medium text-charcoal sm:text-5xl">{found.name}</p>
+              <p className="mt-3 text-lg text-muted">{found.description}</p>
             </div>
 
             {result.analysisId ? (

@@ -31,23 +31,17 @@ export default async function Footer() {
               <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-primary text-lg">
                 <MessageCircle size={20} strokeWidth={1.5} aria-hidden /> Chat with us on WhatsApp
               </a>
-            ) : (
-              <p className="border border-taupe/60 px-6 py-4 text-muted">WhatsApp contact coming soon.</p>
-            )}
+            ) : null}
             {site.email ? (
               <a href={`mailto:${site.email}`} className="btn-secondary text-lg">
                 <Mail size={20} strokeWidth={1.5} aria-hidden /> {site.email}
               </a>
-            ) : (
-              <p className="border border-taupe/60 px-6 py-4 text-muted">Email address coming soon.</p>
-            )}
+            ) : null}
             {site.instagramUrl ? (
               <a href={site.instagramUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-lg">
                 Follow us on Instagram
               </a>
-            ) : (
-              <p className="border border-taupe/60 px-6 py-4 text-muted">Instagram coming soon.</p>
-            )}
+            ) : null}
           </div>
         </Reveal>
       </section>
