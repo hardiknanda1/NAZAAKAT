@@ -323,7 +323,7 @@ export default function ShapeHero() {
                 <span className="text-center sm:whitespace-nowrap lg:whitespace-normal xl:whitespace-nowrap">
                   Guess your{" "}
                   <span className="italic" style={{ color: ACCENT }}>
-                    Body shape
+                    Body shape right
                   </span>{" "}
                   and{" "}
                   <span className="whitespace-nowrap italic" style={{ color: ACCENT }}>
