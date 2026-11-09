@@ -10,6 +10,7 @@ import {
   recentIntakes,
   signedUrls,
   supabaseConfigured,
+  unusedDiscountForPhone,
   upcomingBookings,
   type BookingRow,
   type Intake,
@@ -35,6 +36,13 @@ async function BookingCard({ booking }: { booking: BookingRow }) {
 
   let intake: Intake | null = null;
   let urls: Record<string, string> = {};
+  // A discount saved to this number but not used yet, e.g. claimed after this booking was made.
+  let savedDiscount: number | null = null;
+  try {
+    savedDiscount = booking.discount_percent ? null : ((await unusedDiscountForPhone(phone))?.percent ?? null);
+  } catch (err) {
+    console.error("[admin] Could not check this number's discount.", err);
+  }
   try {
     intake = await intakeForBooking(booking.id);
     if (intake) urls = await signedUrls(PHOTO_BUCKET, intake.photos);
@@ -50,10 +58,16 @@ async function BookingCard({ booking }: { booking: BookingRow }) {
       </div>
       <p className="mt-1 text-base text-muted">+{phone}</p>
       {booking.discount_percent ? (
-        <p className="mt-2 inline-flex items-center rounded-full bg-[#6b1424]/10 px-3 py-1 text-sm font-medium text-[#6b1424]">
-          {booking.discount_percent}% off: guessed their body shape
+        <p className="mt-2 inline-flex items-center rounded-full bg-chocolate/10 px-3 py-1 text-sm font-medium text-chocolate">
+          {booking.discount_percent}% off applied: guessed their body shape
         </p>
-      ) : null}
+      ) : savedDiscount ? (
+        <p className="mt-2 inline-flex items-center rounded-full bg-[#b8924f]/15 px-3 py-1 text-sm font-medium text-chocolate">
+          This number holds a {savedDiscount}% body-shape discount (not used yet)
+        </p>
+      ) : (
+        <p className="mt-2 text-sm text-muted">No body-shape discount on this number</p>
+      )}
 
       <div className="mt-5 flex flex-wrap gap-3">
         <a

@@ -12,7 +12,11 @@ export const site = {
   // Digits only, with country code, e.g. 9198XXXXXXXX
   whatsappNumber: (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D/g, ""),
   instagramUrl: process.env.NEXT_PUBLIC_INSTAGRAM_URL || "",
-  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "",
+  // Shown in the contact section. NEXT_PUBLIC_CONTACT_EMAIL (comma-separated) replaces this list.
+  emails: (process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hardiknanda0130@gmail.com, aashana.july04@gmail.com, proshita.abhayagarwal008@gmail.com")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean),
 };
 
 // "About" and "Book" are their own pages; the rest are sections on the home page.

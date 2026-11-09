@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { notifyConfigured } from "@/lib/notify";
+import { notifyConfigured, notifyEmails } from "@/lib/notify";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -7,12 +7,11 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function GET() {
   await connection(); // read env vars fresh on every request, never bake them in at build time
   const apiKey = (process.env.RESEND_API_KEY || "").trim();
-  const notifyEmail = (process.env.NOTIFY_EMAIL || "").trim();
+  const emails = notifyEmails();
   const problems: string[] = [];
 
   if (!apiKey) problems.push("RESEND_API_KEY is not set. Notifications are off until it is.");
-  if (!notifyEmail) problems.push("NOTIFY_EMAIL is not set. Notifications are off until it is.");
-  else if (!EMAIL.test(notifyEmail)) problems.push("NOTIFY_EMAIL does not look like an email address.");
+  for (const e of emails) if (!EMAIL.test(e)) problems.push(`"${e}" in NOTIFY_EMAIL does not look like an email address.`);
 
   let keyWorks: boolean | null = null;
   if (apiKey) {
@@ -34,6 +33,7 @@ export async function GET() {
       status: notifyConfigured() ? (problems.length ? "settings need fixing" : "ready") : "not set up (bookings still work; you just won't be emailed)",
       problems,
       keyWorks,
+      sendsTo: emails,
       usingSandboxSender: !(process.env.NOTIFY_FROM_EMAIL || "").trim(),
     },
     { headers: { "Cache-Control": "no-store" } },

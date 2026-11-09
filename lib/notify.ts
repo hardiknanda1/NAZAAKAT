@@ -6,8 +6,15 @@ import type { BookingRow } from "./supabase";
 // transactional email service: a plain REST call, no SDK. Entirely optional and best-effort:
 // a failure here is logged and never blocks or fails the booking itself.
 
+// Where the "new booking" email goes. NOTIFY_EMAIL (comma-separated for several) replaces this.
+export const notifyEmails = () =>
+  (process.env.NOTIFY_EMAIL || "hardiknanda0130@gmail.com")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+
 export function notifyConfigured() {
-  return Boolean((process.env.RESEND_API_KEY || "").trim() && (process.env.NOTIFY_EMAIL || "").trim());
+  return Boolean((process.env.RESEND_API_KEY || "").trim() && notifyEmails().length);
 }
 
 /**
@@ -22,7 +29,7 @@ function fromAddress() {
 export async function notifyNewBooking(booking: BookingRow) {
   if (!notifyConfigured()) return;
 
-  const to = (process.env.NOTIFY_EMAIL || "").trim();
+  const to = notifyEmails();
   const when = formatWhen(booking.starts_at);
   const adminUrl = `${site.url.replace(/\/$/, "")}/admin`;
 
@@ -45,7 +52,7 @@ export async function notifyNewBooking(booking: BookingRow) {
       },
       body: JSON.stringify({
         from: fromAddress(),
-        to: [to],
+        to,
         subject: `New booking: ${booking.name}, ${when}`,
         html,
         text: `${booking.name}\n${when} IST\nWhatsApp: +${booking.whatsapp}${booking.discount_percent ? `\n${booking.discount_percent}% body-shape discount applied` : ""}\n\nOpen the bookings page: ${adminUrl}`,

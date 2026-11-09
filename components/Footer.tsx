@@ -32,11 +32,11 @@ export default async function Footer() {
                 <MessageCircle size={20} strokeWidth={1.5} aria-hidden /> Chat with us on WhatsApp
               </a>
             ) : null}
-            {site.email ? (
-              <a href={`mailto:${site.email}`} className="btn-secondary text-lg">
-                <Mail size={20} strokeWidth={1.5} aria-hidden /> {site.email}
+            {site.emails.map((email) => (
+              <a key={email} href={`mailto:${email}`} className="btn-secondary min-w-0 text-base break-all sm:text-lg">
+                <Mail size={20} strokeWidth={1.5} className="shrink-0" aria-hidden /> {email}
               </a>
-            ) : null}
+            ))}
             {site.instagramUrl ? (
               <a href={site.instagramUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-lg">
                 Follow us on Instagram
