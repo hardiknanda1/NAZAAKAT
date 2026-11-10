@@ -13,7 +13,7 @@ const CREAM = "#f3e6d6";
 
 // Floating dark-maroon bar with a soft silk sheen on the right, as in the brand mockup.
 const BAR =
-  "radial-gradient(60% 140% at 100% 0%, rgba(150, 22, 38, 0.55) 0%, rgba(110, 14, 26, 0.18) 45%, transparent 70%), linear-gradient(100deg, #220303 0%, #2c0405 55%, #3a0709 100%)";
+  "radial-gradient(28% 170% at 100% 0%, rgba(140, 6, 26, 0.75) 0%, rgba(110, 4, 20, 0.3) 45%, transparent 75%), linear-gradient(100deg, #250303 0%, #270404 70%, #33050a 100%)";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -41,17 +41,17 @@ export default function Header() {
   const close = () => setOpen(false);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
+    <header className="fixed inset-x-0 top-0 z-50">
       <div
-        className={`mx-auto max-w-[96rem] overflow-hidden rounded-[1.4rem] border border-[#d9b36a]/15 transition-shadow duration-300 sm:rounded-[2rem] ${
-          scrolled || open ? "shadow-[0_14px_40px_-14px_rgba(40,4,6,0.6)]" : "shadow-[0_10px_30px_-16px_rgba(40,4,6,0.45)]"
+        className={`overflow-hidden border-b border-[#d9b36a] transition-shadow duration-300 ${
+          scrolled || open ? "shadow-[0_10px_30px_-14px_rgba(40,4,6,0.55)]" : ""
         }`}
         style={{ background: BAR }}
       >
-        <div className="flex h-[4.5rem] items-center justify-between gap-4 px-4 sm:h-[5.25rem] sm:px-8 lg:px-8 xl:px-12">
+        <div className="mx-auto flex h-[4.5rem] max-w-[96rem] items-center justify-between gap-4 px-4 sm:h-[6rem] sm:px-8 lg:px-8 xl:px-12">
           <div className="flex items-center gap-6 lg:gap-6 xl:gap-9">
             <Link href="/" aria-label="NAZAAKAT, back to home" onClick={close} className="shrink-0">
-              <Image src={wordmark} alt="NAZAAKAT" preload sizes="10rem" className="h-10 w-auto sm:h-[3.1rem]" />
+              <Image src={wordmark} alt="NAZAAKAT" preload sizes="10rem" className="h-10 w-auto sm:h-[3.9rem]" />
             </Link>
             <span aria-hidden className="hidden h-11 w-px lg:block" style={{ background: `${GOLD}99` }} />
           </div>
@@ -63,7 +63,7 @@ export default function Header() {
                   <Link
                     href={item.href}
                     aria-current={item.href === pathname ? "page" : undefined}
-                    className="border-b-2 border-transparent pb-1 font-serif text-[1.08rem] tracking-wide whitespace-nowrap xl:text-[1.2rem] text-[#f3e6d6] transition-colors hover:text-[#d9b36a] aria-[current=page]:border-[#d9b36a] aria-[current=page]:text-[#d9b36a]"
+                    className="border-b-2 border-transparent pb-1 font-serif text-[1.08rem] font-medium tracking-wide whitespace-nowrap xl:text-[1.25rem] text-[#f3e6d6] transition-colors hover:text-[#d9b36a] aria-[current=page]:border-[#d9b36a] aria-[current=page]:text-[#d9b36a]"
                   >
                     {item.label}
                   </Link>
@@ -75,7 +75,7 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <Link
               href={BOOK_HREF}
-              className="hidden min-h-12 items-center gap-2 rounded-xl border-[1.5px] px-5 text-[0.98rem] font-semibold tracking-wide whitespace-nowrap xl:px-6 transition-colors hover:bg-[#d9b36a]/10 sm:inline-flex"
+              className="hidden min-h-[3.15rem] items-center gap-2 rounded-xl border-2 px-5 text-[1.02rem] font-semibold tracking-wide whitespace-nowrap xl:px-7 transition-colors hover:bg-[#d9b36a]/10 sm:inline-flex"
               style={{ borderColor: GOLD, color: CREAM }}
             >
               Book Consultation <ArrowRight size={18} strokeWidth={1.75} aria-hidden />

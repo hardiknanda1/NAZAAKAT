@@ -167,7 +167,8 @@ export default function ShapeHero() {
         className="relative overflow-hidden bg-[#fdf0e9] bg-[radial-gradient(60%_55%_at_72%_38%,#fff8f1_0%,transparent_70%),linear-gradient(115deg,#fdf1ea_0%,#fdf0e9_40%,#fbeae2_100%)]"
       >
         {/* Decorations from the artwork: bougainvillea top right, red silk bottom left */}
-        <Image src={flowers} alt="" aria-hidden sizes="22rem" className="pointer-events-none absolute top-0 right-0 w-[min(46vw,21rem)]" />
+        {/* Hangs from the bottom edge of the navbar, in the top-right corner */}
+        <Image src={flowers} alt="" aria-hidden sizes="22rem" className="pointer-events-none absolute top-[4.5rem] right-0 w-[23vw] sm:top-[6rem] sm:w-[min(40vw,20rem)]" />
         <Image
           src={drape}
           alt=""
