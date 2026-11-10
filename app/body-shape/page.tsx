@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import Logo from "@/components/Logo";
 import ShapeAnalyzer from "@/components/ShapeAnalyzer";
 import { SHAPE_DISCOUNT_PERCENT } from "@/lib/shapes";
 
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
 export default function BodyShapePage() {
   return (
     <>
-      <Header logo={<Logo />} />
+      <Header />
       <main id="main">
         <div className="container-x max-w-4xl pt-32 pb-24 sm:pt-36 lg:pt-40 lg:pb-32">
           <p className="eyebrow">Body Shape Analysis</p>

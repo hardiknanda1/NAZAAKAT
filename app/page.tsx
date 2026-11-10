@@ -4,7 +4,6 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
-import Logo from "@/components/Logo";
 import Services from "@/components/Services";
 import ShapeHero from "@/components/ShapeHero";
 import Statement from "@/components/Statement";
@@ -17,7 +16,7 @@ export default function Home() {
   return (
     <>
       <StartAtTop />
-      <Header logo={<Logo />} />
+      <Header />
       <main id="main">
         {classicHero ? <Hero /> : <ShapeHero />}
         <Services />
