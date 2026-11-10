@@ -197,6 +197,34 @@ export async function createBooking(slotId: string, name: string, whatsapp: stri
   return rows[0];
 }
 
+/**
+ * Undoes a booking whose photos or answers could not be saved: removes the booking and frees its slot,
+ * so no booking is ever left without its questionnaire.
+ */
+export async function cancelBooking(bookingId: string, slotId: string | null) {
+  await check(await fetch(rest(`/bookings?id=eq.${bookingId}`), { method: "DELETE", headers: headers() }), "remove booking");
+  if (slotId) {
+    await check(
+      await fetch(rest(`/booking_slots?id=eq.${slotId}`), {
+        method: "PATCH",
+        headers: headers({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+        body: JSON.stringify({ is_booked: false }),
+      }),
+      "free slot",
+    );
+  }
+}
+
+/** Removes uploaded client photos (used when a booking is undone). */
+export async function deletePhotos(paths: string[]) {
+  if (paths.length === 0) return;
+  await fetch(`${url()}/storage/v1/object/${PHOTO_BUCKET}`, {
+    method: "DELETE",
+    headers: headers({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ prefixes: paths }),
+  });
+}
+
 export async function getBookingByRoom(room: string): Promise<BookingRow | null> {
   const res = await check(await fetch(rest(`/bookings?room=eq.${room}&select=*&limit=1`), { headers: headers(), cache: "no-store" }), "read booking");
   const rows: BookingRow[] = await res.json();
