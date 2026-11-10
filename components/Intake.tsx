@@ -2,7 +2,7 @@
 
 import { Camera, Loader2, Lock, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { MAX_PHOTOS, questions } from "@/lib/intake";
+import { MAX_PHOTOS, missingAnswers, questions } from "@/lib/intake";
 import { shrink } from "@/lib/shrink";
 import { whatsappLink } from "@/lib/site";
 
@@ -14,11 +14,13 @@ const errors: Record<string, string> = {
   bad_photo: "One of the photos could not be used. Please try a different photo.",
   too_many_photos: "Please remove a photo. Up to 5 are allowed.",
   too_large: "The photos are too large together. Please remove one and try again.",
-  need_contact: "Please enter your name and WhatsApp number.",
-  bad_booking: "We could not find your booking. Please message us on WhatsApp.",
+  need_answers: "Please answer the questions marked as required.",
+  need_name: "Please go back and enter your name.",
+  need_whatsapp: "Please go back and enter a valid WhatsApp number.",
+  bad_slot: "Please go back and choose a time.",
   bad_answers: "Something went wrong with your answers. Please try again.",
-  not_configured: "This site is not ready to receive photos yet. Please message us on WhatsApp instead.",
-  save_failed: "We could not save your details just now. Please try again in a moment, or message us on WhatsApp.",
+  not_configured: "Online booking is not ready yet. Please message us on WhatsApp instead.",
+  save_failed: "We could not save your booking just now. Nothing was booked, so please try again in a moment.",
 };
 
 function Chip({ type, name, value, checked, onChange }: { type: "radio" | "checkbox"; name: string; value: string; checked: boolean; onChange: () => void }) {
@@ -32,11 +34,25 @@ function Chip({ type, name, value, checked, onChange }: { type: "radio" | "check
   );
 }
 
-export default function Intake({ bookingId, onDone }: { bookingId: string | null; onDone: () => void }) {
+export type Booked = { bookingId: string; startsAt: string; discountPercent: number | null };
+
+// The last step of booking: photos and questionnaire. Pressing send books the chosen time together with
+// them, so a booking always has its photos and answers. Leaving this step books nothing.
+export default function Intake({
+  slotId,
+  name,
+  whatsapp,
+  onBooked,
+  onSlotTaken,
+}: {
+  slotId: string;
+  name: string;
+  whatsapp: string;
+  onBooked: (b: Booked) => void;
+  onSlotTaken: () => void;
+}) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
-  const [name, setName] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
@@ -72,22 +88,27 @@ export default function Intake({ bookingId, onDone }: { bookingId: string | null
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (photos.length === 0) return setError(errors.no_photos);
-    if (!bookingId && (!name.trim() || whatsapp.replace(/\D/g, "").length < 8)) return setError(errors.need_contact);
+    const missing = missingAnswers(answers);
+    if (missing.length) return setError(`Please answer: ${missing.join(", ")}.`);
     setBusy(true);
     setError("");
     const body = new FormData();
-    if (bookingId) body.set("bookingId", bookingId);
+    body.set("slotId", slotId);
     body.set("name", name);
     body.set("whatsapp", whatsapp);
     body.set("answers", JSON.stringify(answers));
     photos.forEach((p, i) => body.append("photos", p.blob, `photo-${i + 1}.jpg`));
     try {
-      const res = await fetch("/api/intake", { method: "POST", body });
+      const res = await fetch("/api/book", { method: "POST", body });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "save_failed");
-      onDone();
+      onBooked({ bookingId: data.bookingId, startsAt: data.startsAt, discountPercent: data.discountPercent ?? null });
     } catch (err) {
       const code = (err as Error).message;
+      if (code === "slot_taken") {
+        setBusy(false);
+        return onSlotTaken();
+      }
       const wa = whatsappLink();
       setError(errors[code] || `We could not send your details just now. Please try again${wa ? ", or send your photos to us on WhatsApp" : ""}.`);
       setBusy(false);
@@ -101,7 +122,7 @@ export default function Intake({ bookingId, onDone }: { bookingId: string | null
         Help us prepare <span className="text-chocolate italic">for you.</span>
       </h3>
       <p className="mt-4 max-w-2xl text-lg text-muted">
-        Your time is booked. Share a few photos and answers so your stylist can get to know you before the consultation.
+        Share a few photos and answers so your stylist can get to know you. Your time is booked as soon as you send them.
       </p>
 
       {/* Photos */}
@@ -138,25 +159,14 @@ export default function Intake({ bookingId, onDone }: { bookingId: string | null
         </p>
       </fieldset>
 
-      {/* Contact details, only if we do not already know which booking this is */}
-      {!bookingId && (
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-lg font-medium text-charcoal">Your name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="mt-2 block min-h-14 w-full border border-taupe bg-white px-4 text-lg" />
-          </label>
-          <label className="block">
-            <span className="text-lg font-medium text-charcoal">WhatsApp Number (with country code)</span>
-            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} type="tel" autoComplete="tel" placeholder="+91 98765 43210" className="mt-2 block min-h-14 w-full border border-taupe bg-white px-4 text-lg" />
-          </label>
-        </div>
-      )}
-
       {/* Questions */}
       <div className="mt-10 space-y-8">
         {questions.map((q) => (
           <fieldset key={q.id}>
-            <legend className="text-lg font-medium text-charcoal">{q.label}</legend>
+            <legend className="text-lg font-medium text-charcoal">
+              {q.label}
+              {q.required && <span className="ml-1.5 text-base font-normal text-muted">(required)</span>}
+            </legend>
             {q.type === "text" ? (
               <input
                 aria-label={q.label}
@@ -195,10 +205,10 @@ export default function Intake({ bookingId, onDone }: { bookingId: string | null
       <button type="submit" disabled={busy} className="btn-primary mt-8 w-full rounded-lg text-lg disabled:opacity-70 sm:w-auto">
         {busy ? (
           <>
-            <Loader2 size={20} className="animate-spin" aria-hidden /> Sending your photos…
+            <Loader2 size={20} className="animate-spin" aria-hidden /> Booking your consultation…
           </>
         ) : (
-          "Send to my stylist"
+          "Confirm my booking"
         )}
       </button>
     </form>

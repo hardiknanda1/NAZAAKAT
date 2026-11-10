@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowLeft, CalendarDays, Clock, Loader2, MessageCircle } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Intake from "@/components/Intake";
+import Intake, { type Booked } from "@/components/Intake";
 import { DISCOUNT_KEY, type StoredDiscount } from "@/lib/shapes";
 import { whatsappLink } from "@/lib/site";
 import { formatShort, formatTime, formatWhen } from "@/lib/time";
@@ -33,8 +33,6 @@ export default function BookingFlow() {
   const [slot, setSlot] = useState<Slot | null>(null);
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [bookingId, setBookingId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [discount, setDiscount] = useState<StoredDiscount | null>(null); // claimed with the body-shape analyser
   const [applied, setApplied] = useState<number | null>(null);
@@ -88,36 +86,28 @@ export default function BookingFlow() {
   // (not stored via an effect) so there is no extra render pass just to pick a default.
   const selectedDay = day ?? days[0]?.[0] ?? null;
 
-  async function confirmBooking(e: React.FormEvent) {
+  // "Confirm this time" only checks the details and moves on to the photos and questionnaire. Nothing is
+  // booked until those are sent (see Intake), so a booking can never be made without them.
+  function continueToIntake(e: React.FormEvent) {
     e.preventDefault();
     if (!slot) return;
-    setBusy(true);
+    if (!name.trim()) return setError(bookErrors.need_name);
+    if (whatsapp.replace(/\D/g, "").length < 8) return setError(bookErrors.need_whatsapp);
     setError("");
-    try {
-      const res = await fetch("/api/book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotId: slot.id, name, whatsapp }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "save_failed");
-      setBookingId(data.bookingId);
-      if (data.discountPercent) forgetDiscount();
-      setApplied(data.discountPercent ?? null);
-      setStage("intake");
-    } catch (err) {
-      const code = (err as Error).message;
-      if (code === "slot_taken") {
-        setError(bookErrors.slot_taken);
-        setSlot(null);
-        setStage("slots");
-        loadSlots();
-      } else {
-        setError(bookErrors[code] || "We could not book that time. Please try again.");
-      }
-    } finally {
-      setBusy(false);
-    }
+    setStage("intake");
+  }
+
+  function booked(b: Booked) {
+    if (b.discountPercent) forgetDiscount();
+    setApplied(b.discountPercent);
+    setStage("done");
+  }
+
+  function slotTaken() {
+    setError(bookErrors.slot_taken);
+    setSlot(null);
+    setStage("slots");
+    loadSlots();
   }
 
   const wa = whatsappLink("Hello NAZAAKAT, I would like to book a style consultation.");
@@ -158,7 +148,7 @@ export default function BookingFlow() {
             Thank you. We will send your private video consultation link to your WhatsApp number shortly. Simply tap the
             link at your appointment time. No account or app download needed.
           </p>
-          {applied ? <p className="mt-3 text-lg font-medium text-[#6b1424]">Your {applied}% body-shape discount is applied.</p> : null}
+          {applied ? <p className="mt-3 text-lg font-medium text-chocolate">Your {applied}% body-shape discount is applied.</p> : null}
           <Link href="/" className="btn-secondary mt-6 rounded-lg text-base">
             Return to Home
           </Link>
@@ -167,8 +157,19 @@ export default function BookingFlow() {
     );
   }
 
-  if (stage === "intake" && bookingId) {
-    return <Intake bookingId={bookingId} onDone={() => setStage("done")} />;
+  if (stage === "intake" && slot) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setStage("contact")}
+          className="mb-4 inline-flex items-center gap-1.5 text-base text-muted hover:text-chocolate"
+        >
+          <ArrowLeft size={16} aria-hidden /> Back to your details
+        </button>
+        <Intake slotId={slot.id} name={name} whatsapp={whatsapp} onBooked={booked} onSlotTaken={slotTaken} />
+      </div>
+    );
   }
 
   const dayTimes = selectedDay ? (days.find(([d]) => d === selectedDay)?.[1] ?? []) : [];
@@ -176,7 +177,7 @@ export default function BookingFlow() {
   return (
     <div className="border border-taupe/60 bg-ivory p-5 sm:p-8">
       {stage === "contact" && slot ? (
-        <form onSubmit={confirmBooking}>
+        <form onSubmit={continueToIntake}>
           <button
             type="button"
             onClick={() => {
@@ -237,14 +238,8 @@ export default function BookingFlow() {
               </p>
             )}
           </div>
-          <button type="submit" disabled={busy} className="btn-primary mt-8 w-full rounded-lg text-lg disabled:opacity-70 sm:w-auto">
-            {busy ? (
-              <>
-                <Loader2 size={20} className="animate-spin" aria-hidden /> Booking…
-              </>
-            ) : (
-              "Confirm this time"
-            )}
+          <button type="submit" className="btn-primary mt-8 w-full rounded-lg text-lg sm:w-auto">
+            Continue
           </button>
         </form>
       ) : (

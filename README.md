@@ -17,7 +17,6 @@ app/
   admin/                              Private area (one password): bookings, availability, a single booking's info
   admin/booking/[id]/                 One booking's details + catalogue upload; this is what you send your consultant
   api/book, api/slots                 Create a booking, read open slots (public)
-  api/intake                          Receives the post-booking questionnaire and photos
   api/jitsi/session                   Signs video tokens; returns the right catalogue for that room
   api/admin/slots, api/admin/booking  Manage availability and upload a booking's catalogue (password-gated)
 components/                           One file per section, plus Logo, Photo, Reveal, Intake
@@ -162,11 +161,15 @@ free, and how long each consultation lasts; it generates the individual open slo
 You can also remove any slot that is not yet booked. A slot that is booked cannot be removed from
 here (cancel it with the client directly, then delete it, if that is ever needed).
 
-## Questionnaire and photos after booking
+## Questionnaire and photos (part of booking)
 
-Right after booking a time, the client sees a short form: 1 to 5 photos and a few tap-to-choose
-questions (`lib/intake.ts`). Only after they send it does the "your meeting link arrives on WhatsApp"
-confirmation appear. Photos are shrunk in the browser (about 1600 px) before upload.
+After choosing a time and entering their name and WhatsApp number, the client fills a short form: 1 to 5
+photos and a few questions (`lib/intake.ts`; height, what they wear most and occasions are required).
+**The booking is only made when they press "Confirm my booking"**, in one request that carries the
+time, their details, the photos and the answers (`/api/book`). The server refuses a booking without
+photos or the required answers, and if the photos or answers can't be saved it undoes the booking and
+frees the slot. So every booking has its questionnaire; leaving at the questionnaire books nothing.
+Photos are shrunk in the browser (about 1600 px) before upload.
 
 Answers go in the `consultation_intake` table, photos in the private `client-photos` bucket. The admin
 page shows both through short-lived (1 hour) signed links.

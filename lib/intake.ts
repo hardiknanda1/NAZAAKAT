@@ -2,18 +2,19 @@
 // Kept short and mostly tap-to-choose for clients who are not comfortable with long forms.
 
 export type Question =
-  | { id: string; label: string; type: "choice"; options: string[] }
-  | { id: string; label: string; type: "multi"; options: string[] }
-  | { id: string; label: string; type: "text"; placeholder?: string };
+  | { id: string; label: string; type: "choice"; options: string[]; required?: boolean }
+  | { id: string; label: string; type: "multi"; options: string[]; required?: boolean }
+  | { id: string; label: string; type: "text"; placeholder?: string; required?: boolean };
 
 export const questions: Question[] = [
-  { id: "height", label: "Your height", type: "text", placeholder: "e.g. 5 ft 3 in" },
-  { id: "wear", label: "What do you wear most?", type: "choice", options: ["Mostly Indian", "Mostly Western", "A mix of both"] },
+  { id: "height", label: "Your height", type: "text", placeholder: "e.g. 5 ft 3 in", required: true },
+  { id: "wear", label: "What do you wear most?", type: "choice", options: ["Mostly Indian", "Mostly Western", "A mix of both"], required: true },
   {
     id: "occasions",
     label: "Which occasions do you dress for most?",
     type: "multi",
     options: ["Everyday", "Work", "Festive and weddings", "Parties and evenings", "Travel"],
+    required: true,
   },
   {
     id: "focus",
@@ -44,4 +45,9 @@ export function cleanAnswers(raw: unknown): Record<string, string | string[]> {
     }
   }
   return out;
+}
+
+/** The required questions left unanswered, by label (empty when the questionnaire is complete). */
+export function missingAnswers(answers: Record<string, string | string[]>) {
+  return questions.filter((q) => q.required && !answers[q.id]?.length).map((q) => q.label);
 }
