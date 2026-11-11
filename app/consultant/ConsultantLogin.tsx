@@ -15,6 +15,9 @@ const errors: Record<string, string> = {
   email_not_configured: "Sign-in emails aren't set up yet. Please contact the NAZAAKAT team.",
   not_configured: "Sign-in isn't set up yet. Please contact the NAZAAKAT team.",
   send_failed: "We couldn't send the code just now. Please try again in a moment.",
+  email_domain:
+    "We can't email codes to this address yet: the site's email service is still in test mode. Please ask the NAZAAKAT team to finish setting up email.",
+  not_ready: "Consultant sign-in isn't set up yet (the database needs updating). Please ask the NAZAAKAT team.",
   verify_failed: "We couldn't check the code just now. Please try again.",
 };
 const message = (code: string) => errors[code] || "Something went wrong. Please try again.";

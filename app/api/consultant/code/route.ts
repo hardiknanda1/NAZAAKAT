@@ -72,10 +72,15 @@ export async function POST(request: Request) {
       html: `<p>Hello ${escapeHtml(consultant.verified_at ? consultant.name : name)},</p><p>Your sign-in code is <strong style="font-size:20px;letter-spacing:3px">${code}</strong>.</p><p>It works for ${CODE_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
       text: `Your NAZAAKAT sign-in code is ${code}. It works for ${CODE_MINUTES} minutes.`,
     });
-    if (!sent) return Response.json({ error: "send_failed" }, { status: 502 });
+    if (sent === "sandbox") return Response.json({ error: "email_domain" }, { status: 503 });
+    if (sent !== "sent") return Response.json({ error: "send_failed" }, { status: 502 });
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[consultant] Could not send a sign-in code.", err);
+    // The consultant tables don't exist yet: supabase/schema.sql hasn't been re-run.
+    if (/PGRST205|42P01|42703|does not exist|Could not find the table/i.test(String((err as Error).message))) {
+      return Response.json({ error: "not_ready" }, { status: 503 });
+    }
     return Response.json({ error: "send_failed" }, { status: 502 });
   }
 }

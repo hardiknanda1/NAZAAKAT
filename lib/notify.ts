@@ -54,21 +54,27 @@ export async function notifyNewBooking(booking: BookingRow) {
 
 export const emailConfigured = () => Boolean((process.env.RESEND_API_KEY || "").trim());
 
-/** Sends one email through Resend. Returns false (and logs why) instead of throwing. */
-export async function sendEmail(mail: { to: string[]; subject: string; html: string; text: string }): Promise<boolean> {
-  if (!emailConfigured()) return false;
+/**
+ * Sends one email through Resend. Never throws: returns "sent", "sandbox" when Resend's test sender
+ * refuses the address (no verified domain yet, so it only delivers to the account's own email), or
+ * "failed" (the reason is logged).
+ */
+export async function sendEmail(mail: { to: string[]; subject: string; html: string; text: string }): Promise<"sent" | "sandbox" | "failed"> {
+  if (!emailConfigured()) return "failed";
   try {
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch(`${(process.env.RESEND_API_BASE || "https://api.resend.com").replace(/\/$/, "")}/emails`, {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: fromAddress(), ...mail }),
     });
-    if (res.ok) return true;
-    console.error(`[notify] Resend rejected the email (${res.status}): ${await res.text()}`);
+    if (res.ok) return "sent";
+    const body = await res.text();
+    console.error(`[notify] Resend rejected the email (${res.status}): ${body}`);
+    if (res.status === 403 && /verify a domain|testing emails/i.test(body)) return "sandbox";
   } catch (err) {
     console.error("[notify] Could not reach Resend to send an email.", err);
   }
-  return false;
+  return "failed";
 }
 
 export function escapeHtml(s: string) {
