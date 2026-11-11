@@ -162,6 +162,7 @@ export type BookingRow = {
   room: string;
   catalogue: Catalogue | null;
   discount_percent: number | null;
+  consultant_id: string | null;
   created_at: string;
 };
 
@@ -414,4 +415,140 @@ export async function redeemDiscount(id: string, phone: string, bookingId: strin
     "record booking discount",
   );
   return rows[0].percent;
+}
+
+// ---- Consultants, their sign-in codes, and their requests to take bookings ----
+
+export type Consultant = { id: string; created_at: string; name: string; email: string; phone: string | null; active: boolean };
+export type ConsultantCode = { id: string; created_at: string; consultant_id: string; code_hash: string; expires_at: string; attempts: number; used_at: string | null };
+export type BookingRequest = {
+  id: string;
+  created_at: string;
+  booking_id: string;
+  consultant_id: string;
+  status: "pending" | "accepted" | "declined";
+  decided_at: string | null;
+};
+
+async function rows<T>(path: string, what: string): Promise<T[]> {
+  const res = await check(await fetch(rest(path), { headers: headers(), cache: "no-store" }), what);
+  return res.json();
+}
+
+async function write<T>(path: string, method: "POST" | "PATCH", body: unknown, what: string): Promise<T[]> {
+  const res = await check(
+    await fetch(rest(path), {
+      method,
+      headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
+      body: JSON.stringify(body),
+    }),
+    what,
+  );
+  return res.json();
+}
+
+export const listConsultants = () => rows<Consultant>("/consultants?select=*&order=name.asc", "read consultants");
+
+export async function getConsultant(id: string): Promise<Consultant | null> {
+  return (await rows<Consultant>(`/consultants?id=eq.${id}&select=*&limit=1`, "read consultant"))[0] ?? null;
+}
+
+export async function consultantByEmail(email: string): Promise<Consultant | null> {
+  return (await rows<Consultant>(`/consultants?email=eq.${encodeURIComponent(email)}&select=*&limit=1`, "read consultant"))[0] ?? null;
+}
+
+/** Adds a consultant; returns null if that email is already on the list. */
+export async function addConsultant(c: { name: string; email: string; phone: string | null }): Promise<Consultant | null> {
+  const res = await fetch(rest("/consultants"), {
+    method: "POST",
+    headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
+    body: JSON.stringify(c),
+  });
+  if (res.status === 409) return null;
+  await check(res, "add consultant");
+  return ((await res.json()) as Consultant[])[0];
+}
+
+export async function setConsultantActive(id: string, active: boolean) {
+  await write(`/consultants?id=eq.${id}`, "PATCH", { active }, "update consultant");
+}
+
+export async function deleteConsultant(id: string) {
+  await check(await fetch(rest(`/consultants?id=eq.${id}`), { method: "DELETE", headers: headers() }), "remove consultant");
+}
+
+export async function createCode(c: Pick<ConsultantCode, "consultant_id" | "code_hash" | "expires_at">) {
+  await write("/consultant_codes", "POST", c, "save code");
+}
+
+export async function codesSince(consultantId: string, sinceIso: string) {
+  return (await rows<{ id: string }>(`/consultant_codes?consultant_id=eq.${consultantId}&created_at=gte.${encodeURIComponent(sinceIso)}&select=id`, "count codes")).length;
+}
+
+/** The newest code that is unused and not expired, if any. */
+export async function activeCode(consultantId: string): Promise<ConsultantCode | null> {
+  const now = encodeURIComponent(new Date().toISOString());
+  return (
+    (await rows<ConsultantCode>(`/consultant_codes?consultant_id=eq.${consultantId}&used_at=is.null&expires_at=gt.${now}&select=*&order=created_at.desc&limit=1`, "read code"))[0] ??
+    null
+  );
+}
+
+export async function countCodeAttempt(id: string, attempts: number) {
+  await write(`/consultant_codes?id=eq.${id}`, "PATCH", { attempts }, "update code");
+}
+
+/** Marks the code used; false if it was already used (so it can never sign in twice). */
+export async function spendCode(id: string) {
+  return (await write(`/consultant_codes?id=eq.${id}&used_at=is.null`, "PATCH", { used_at: new Date().toISOString() }, "use code")).length === 1;
+}
+
+/** Upcoming confirmed bookings no consultant has been given yet. */
+export const unassignedBookings = (fromIso: string) =>
+  rows<BookingRow>(`/bookings?status=eq.confirmed&consultant_id=is.null&starts_at=gte.${fromIso}&select=*&order=starts_at.asc&limit=200`, "read bookings");
+
+export const consultantBookings = (consultantId: string, fromIso: string) =>
+  rows<BookingRow>(`/bookings?consultant_id=eq.${consultantId}&status=eq.confirmed&starts_at=gte.${fromIso}&select=*&order=starts_at.asc&limit=200`, "read bookings");
+
+export const requestsByConsultant = (consultantId: string) =>
+  rows<BookingRequest>(`/booking_requests?consultant_id=eq.${consultantId}&select=*`, "read requests");
+
+export async function requestsForBookings(bookingIds: string[]): Promise<BookingRequest[]> {
+  if (bookingIds.length === 0) return [];
+  return rows<BookingRequest>(`/booking_requests?booking_id=in.(${bookingIds.join(",")})&select=*&order=created_at.asc`, "read requests");
+}
+
+/** Records a consultant's request to take a booking; a repeat request is ignored. */
+export async function createRequest(bookingId: string, consultantId: string) {
+  const res = await fetch(rest("/booking_requests?on_conflict=booking_id,consultant_id"), {
+    method: "POST",
+    headers: headers({ "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=minimal" }),
+    body: JSON.stringify({ booking_id: bookingId, consultant_id: consultantId }),
+  });
+  await check(res, "save request");
+}
+
+/**
+ * Gives the booking to the consultant who asked. Only succeeds while the booking has no consultant yet,
+ * so two requests can never both be accepted. The other requests for it are declined.
+ */
+export async function acceptRequest(requestId: string): Promise<boolean> {
+  const req = (await rows<BookingRequest>(`/booking_requests?id=eq.${requestId}&status=eq.pending&select=*&limit=1`, "read request"))[0];
+  if (!req) return false;
+  const assigned = await write<BookingRow>(`/bookings?id=eq.${req.booking_id}&consultant_id=is.null`, "PATCH", { consultant_id: req.consultant_id }, "assign booking");
+  if (assigned.length === 0) return false;
+  const now = new Date().toISOString();
+  await write(`/booking_requests?id=eq.${requestId}`, "PATCH", { status: "accepted", decided_at: now }, "accept request");
+  await write(`/booking_requests?booking_id=eq.${req.booking_id}&status=eq.pending`, "PATCH", { status: "declined", decided_at: now }, "decline others");
+  return true;
+}
+
+export async function declineRequest(requestId: string) {
+  await write(`/booking_requests?id=eq.${requestId}&status=eq.pending`, "PATCH", { status: "declined", decided_at: new Date().toISOString() }, "decline request");
+}
+
+/** Takes the booking away from its consultant again (their request goes back to declined). */
+export async function unassignBooking(bookingId: string) {
+  await write(`/bookings?id=eq.${bookingId}`, "PATCH", { consultant_id: null }, "unassign booking");
+  await write(`/booking_requests?booking_id=eq.${bookingId}&status=eq.accepted`, "PATCH", { status: "declined", decided_at: new Date().toISOString() }, "reset request");
 }

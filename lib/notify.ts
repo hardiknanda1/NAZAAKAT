@@ -44,29 +44,33 @@ export async function notifyNewBooking(booking: BookingRow) {
     <p><a href="${adminUrl}">Open the bookings page</a> to send the client their meeting link.</p>
   `;
 
+  await sendEmail({
+    to,
+    subject: `New booking: ${booking.name}, ${when}`,
+    html,
+    text: `${booking.name}\n${when} IST\nWhatsApp: +${booking.whatsapp}${booking.discount_percent ? `\n${booking.discount_percent}% body-shape discount applied` : ""}\n\nOpen the bookings page: ${adminUrl}`,
+  });
+}
+
+export const emailConfigured = () => Boolean((process.env.RESEND_API_KEY || "").trim());
+
+/** Sends one email through Resend. Returns false (and logs why) instead of throwing. */
+export async function sendEmail(mail: { to: string[]; subject: string; html: string; text: string }): Promise<boolean> {
+  if (!emailConfigured()) return false;
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: fromAddress(),
-        to,
-        subject: `New booking: ${booking.name}, ${when}`,
-        html,
-        text: `${booking.name}\n${when} IST\nWhatsApp: +${booking.whatsapp}${booking.discount_percent ? `\n${booking.discount_percent}% body-shape discount applied` : ""}\n\nOpen the bookings page: ${adminUrl}`,
-      }),
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: fromAddress(), ...mail }),
     });
-    if (!res.ok) {
-      console.error(`[notify] Resend rejected the email (${res.status}): ${await res.text()}`);
-    }
+    if (res.ok) return true;
+    console.error(`[notify] Resend rejected the email (${res.status}): ${await res.text()}`);
   } catch (err) {
-    console.error("[notify] Could not reach Resend to send the booking email.", err);
+    console.error("[notify] Could not reach Resend to send an email.", err);
   }
+  return false;
 }
 
-function escapeHtml(s: string) {
+export function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
