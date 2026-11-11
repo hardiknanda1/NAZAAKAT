@@ -3,6 +3,7 @@
 import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, Maximize2, Mic, MicOff, PhoneOff, Video, VideoOff, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isNewer, localChange, newScreenId, parseSync, type SyncState } from "@/lib/catalogueSync";
 
 type JitsiApi = {
   dispose: () => void;
@@ -98,6 +99,9 @@ export default function JitsiRoom({ room }: { room: string }) {
   const [showCatalogue, setShowCatalogue] = useState(false);
   const showRef = useRef(false);
   const pageRef = useRef(0);
+  // Which version of the shared catalogue state this screen shows (see lib/catalogueSync.ts).
+  const syncRef = useRef<SyncState>({ page: 0, show: false, v: 0, from: "" });
+  const meRef = useRef("");
   const isHost = Boolean(session?.moderator);
   const catalogue = session?.catalogue ?? null;
   const pages = catalogue?.type === "images" ? catalogue.pages : [];
@@ -134,12 +138,15 @@ export default function JitsiRoom({ room }: { room: string }) {
   }, [room]);
 
   // The consultant's page, and whether the catalogue is open, go to everyone through Jitsi's data channel.
+  // Every real change gets a newer version, so a second consultant screen re-sending an old state
+  // can't flip the catalogue back and forth.
   const broadcast = useCallback(() => {
-    api.current?.executeCommand(
-      "sendEndpointTextMessage",
-      "",
-      JSON.stringify({ type: PAGE_MESSAGE, page: pageRef.current, show: showRef.current }),
-    );
+    const s = syncRef.current;
+    api.current?.executeCommand("sendEndpointTextMessage", "", JSON.stringify({ type: PAGE_MESSAGE, page: s.page, show: s.show, v: s.v, from: s.from }));
+  }, []);
+  const record = useCallback((change: { page?: number; show?: boolean }) => {
+    if (!meRef.current) meRef.current = newScreenId();
+    syncRef.current = localChange(syncRef.current, change, meRef.current);
   }, []);
 
   // Catalogue open: videos stacked in one column (tile view). Closed: Jitsi's normal speaker view.
@@ -151,9 +158,11 @@ export default function JitsiRoom({ room }: { room: string }) {
   }, []);
 
   const toggleCatalogue = useCallback(() => {
-    applyCatalogue(!showRef.current);
+    const show = !showRef.current;
+    applyCatalogue(show);
+    record({ show, page: pageRef.current });
     broadcast();
-  }, [applyCatalogue, broadcast]);
+  }, [applyCatalogue, broadcast, record]);
 
   const goTo = useCallback(
     (p: number) => {
@@ -161,9 +170,12 @@ export default function JitsiRoom({ room }: { room: string }) {
       const next = Math.min(Math.max(p, 0), lastPage);
       pageRef.current = next;
       setPage(next);
-      if (isHost) broadcast();
+      if (isHost) {
+        record({ page: next, show: showRef.current });
+        broadcast();
+      }
     },
-    [isHost, broadcast, lastPage],
+    [isHost, broadcast, lastPage, record],
   );
 
   // Resend the current page every few seconds so a late or reconnecting client catches up.
@@ -236,21 +248,16 @@ export default function JitsiRoom({ room }: { room: string }) {
       jitsi.addListener("participantJoined", () => {
         if (session.moderator) setTimeout(broadcast, 1500);
       });
+      // Everyone follows the newest catalogue state, consultant screens included, so two consultant
+      // screens agree instead of fighting.
       jitsi.addListener("endpointTextMessageReceived", (e: { data?: { eventData?: { text?: string } }; eventData?: { text?: string } }) => {
-        if (session.moderator) return;
-        try {
-          const msg = JSON.parse(e?.data?.eventData?.text ?? e?.eventData?.text ?? "");
-          if (msg?.type === PAGE_MESSAGE) {
-            if (Number.isInteger(msg.page)) {
-              const p = Math.min(Math.max(msg.page, 0), Math.max(lastPage, 0));
-              pageRef.current = p;
-              setPage(p);
-            }
-            if (typeof msg.show === "boolean" && msg.show !== showRef.current) applyCatalogue(msg.show);
-          }
-        } catch {
-          // not one of our messages
-        }
+        const msg = parseSync(e?.data?.eventData?.text ?? e?.eventData?.text, PAGE_MESSAGE);
+        if (!msg || !isNewer(msg, syncRef.current)) return;
+        syncRef.current = msg;
+        const p = Math.min(Math.max(msg.page, 0), Math.max(lastPage, 0));
+        pageRef.current = p;
+        setPage(p);
+        if (msg.show !== showRef.current) applyCatalogue(msg.show);
       });
       jitsi.addListener("audioMuteStatusChanged", (e: { muted: boolean }) => setMicOn(!e.muted));
       jitsi.addListener("videoMuteStatusChanged", (e: { muted: boolean }) => setCamOn(!e.muted));
