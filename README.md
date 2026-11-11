@@ -189,19 +189,22 @@ One password (`ADMIN_PASSWORD`) protects everything under `/admin`. Each upcomin
 
 ### Consultants (`/consultant`)
 
-Anyone can sign up as a consultant at `/consultant`: the first page asks for their name, email and phone,
-then emails a 6-digit code through Resend to prove the email. After the code they land on **Your profile**
-(`/consultant/profile`) to set a password (at least 8 characters, stored as a scrypt hash) and fill in an
-optional photo, expertise, years of experience, languages, city, a short bio and an Instagram or portfolio
-link. From then on they sign in with email + password. Five wrong passwords lock the account for 15
-minutes. **Forgot password?** emails a code, and the code plus the new password are entered on one screen.
+Anyone can sign up as a consultant at `/consultant` with their name, email, phone and a password (at least
+8 characters, stored only as a scrypt hash). They're signed in straight away and land on **Your profile**
+(`/consultant/profile`) to add an optional photo, expertise, years of experience, languages, city, a short
+bio and an Instagram or portfolio link. From then on they sign in with email + password, as often as they
+like. Five wrong passwords lock the account for 15 minutes. No emails are sent for sign-in, so no Resend
+domain is needed.
 
-They appear under **Admin -> Consultants** once they've entered the code, with their full profile, photo,
-whether a password is set and how many bookings they've been given; half-finished sign-ups are listed
-separately. **Give one-time code** creates a code (valid once, for 24 hours) with a ready WhatsApp message:
-it signs them in via "I have a code from the NAZAAKAT team", or resets their password via "Forgot password",
-for when email can't reach them. You can also add someone there yourself. Pausing or removing a consultant
-signs them out straight away and stops them signing in.
+**Forgot password:** the sign-in page tells them to message the team (WhatsApp, if
+`NEXT_PUBLIC_WHATSAPP_NUMBER` is set, and the first contact email). On **Admin -> Consultants**, **Reset
+password** sets a temporary password (and clears any lock) with a ready WhatsApp message; they sign in with
+it and change it on their profile page.
+
+**Admin -> Consultants** shows each consultant's full profile and photo, whether a password is set, and how
+many bookings they've been given. **Add a consultant** there also gives you a temporary password to send
+them. Pausing or removing a consultant signs them out straight away and stops them signing in. Each network
+can create at most ten accounts an hour.
 
 Signed in, a consultant sees upcoming bookings that nobody has been given yet (time, length and the
 client's first name only) and can **ask to take** one. You get an email, and the booking's card on the
@@ -209,15 +212,8 @@ admin page shows the request with **Accept** / **Decline**. Accepting gives the 
 (only one can ever be accepted) and declines the others; the booking then appears under their
 "Your consultations" with the consultant (host) video link. **Take back** on the card undoes it.
 
-Codes are stored only as keyed hashes, expire after 10 minutes, allow 5 tries, and each one works once;
-each email can get one code a minute and five an hour, and each network eight an hour, so the form can't be
-used to flood people's inboxes.
-
-**Email:** codes go out through Resend (`RESEND_API_KEY`). Resend's free test sender only delivers to the
-email the Resend account was made with, so for consultants' own inboxes, verify a domain in Resend and
-set `NOTIFY_FROM_EMAIL` to an address on it. In local development without Resend, the code is printed in
-the terminal instead. Re-run `supabase/schema.sql` once to add the `consultants`, `consultant_codes` and
-`booking_requests` tables, the password and profile columns, and the private `consultant-photos` bucket.
+Re-run `supabase/schema.sql` once to add the `consultants` and `booking_requests` tables, the password and
+profile columns, and the private `consultant-photos` bucket.
 
 ### A booking's own catalogue
 

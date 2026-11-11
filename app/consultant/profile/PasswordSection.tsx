@@ -46,7 +46,7 @@ export default function PasswordSection({ hasPassword, highlight }: { hasPasswor
     <form onSubmit={save} className={`border bg-ivory p-5 sm:p-7 ${highlight ? "border-chocolate/50" : "border-taupe/60"}`}>
       <h2 className="font-serif text-2xl font-medium text-charcoal">{hasPassword ? "Change your password" : "Set a password"}</h2>
       <p className="mt-1 text-base text-muted">
-        {hasPassword ? "You can always reset it with Forgot password on the sign-in page." : "Then you can sign in with your email and password, without waiting for a code."}
+        {hasPassword ? "If you forget it, the NAZAAKAT team can give you a temporary one." : "Then you can sign in with your email and password."}
       </p>
       <div className={`mt-5 grid gap-4 ${hasPassword ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         {hasPassword && (

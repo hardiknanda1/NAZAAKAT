@@ -35,3 +35,9 @@ export function whatsappLink(message = "Hello NAZAAKAT, I would like to know mor
   if (!site.whatsappNumber) return "";
   return `https://wa.me/${site.whatsappNumber}?text=${encodeURIComponent(message)}`;
 }
+
+/** Where a consultant who forgot their password asks for a temporary one. */
+export const consultantHelp = () => ({
+  whatsapp: whatsappLink("Hello NAZAAKAT, I'm a consultant and I forgot my password. Could you send me a temporary one?"),
+  email: site.emails[0] ?? "",
+});

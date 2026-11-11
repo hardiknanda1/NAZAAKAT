@@ -2,13 +2,13 @@ import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getConsultant, type Consultant } from "./supabase";
 
-// Consultant sign-in: a one-time code emailed to an address the admin added, then a signed cookie.
+// Consultant sign-in: email and password, then a signed cookie.
 // Server only.
 
 export const CONSULTANT_COOKIE = "nazaakat_consultant";
 const SESSION_DAYS = 30;
 
-// Signing key for codes and sessions. Changing it signs every consultant out.
+// Signing key for sessions. Changing it signs every consultant out.
 const secret = () => (process.env.MEETING_ROOM_SECRET || process.env.ADMIN_PASSWORD || "").trim();
 export const authConfigured = () => Boolean(secret());
 
@@ -20,9 +20,17 @@ function same(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-export const newCode = () => String(randomInt(0, 1_000_000)).padStart(6, "0");
-export const hashCode = (consultantId: string, code: string) => hmac(`code:${consultantId}:${code}`);
-export const codeMatches = (consultantId: string, code: string, hash: string) => same(hashCode(consultantId, code), hash);
+/** A keyed hash of the visitor's IP address, used only to rate-limit sign-ups. */
+export function ipHash(request: Request) {
+  const ip = (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || request.headers.get("x-real-ip") || "unknown";
+  return hmac(`consultant-ip:${ip}`).slice(0, 32);
+}
+
+// Easy to read out or type: no 0/O, 1/l/I. About 50 bits, and it only works until they change it.
+const TEMP_LETTERS = "abcdefghjkmnpqrstuvwxyz23456789";
+/** A temporary password the admin gives a consultant who forgot theirs, e.g. "k7mq-4trx-p9wh". */
+export const tempPassword = () =>
+  Array.from({ length: 3 }, () => Array.from({ length: 4 }, () => TEMP_LETTERS[randomInt(TEMP_LETTERS.length)]).join("")).join("-");
 
 export const normaliseEmail = (raw: unknown) => {
   const email = String(raw || "").trim().toLowerCase();

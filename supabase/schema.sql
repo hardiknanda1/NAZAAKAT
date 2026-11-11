@@ -88,21 +88,12 @@ create table if not exists public.consultants (
 );
 alter table public.consultants enable row level security;
 
--- One-time sign-in codes. Only a keyed hash of the code is stored; each expires after 10 minutes.
-create table if not exists public.consultant_codes (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
-  consultant_id uuid not null references public.consultants (id) on delete cascade,
-  code_hash text not null,
-  expires_at timestamptz not null,
-  attempts int not null default 0,
-  used_at timestamptz
-);
-create index if not exists consultant_codes_consultant on public.consultant_codes (consultant_id, created_at);
--- Anyone can sign up as a consultant: an account counts once its email is proven with a code.
-alter table public.consultants add column if not exists verified_at timestamptz;
-alter table public.consultant_codes add column if not exists ip_hash text; -- keyed hash, only for rate limits
-create index if not exists consultant_codes_ip on public.consultant_codes (ip_hash, created_at);
+-- Anyone can sign up as a consultant with name, email, phone and a password. (The old emailed sign-in
+-- codes are gone, so their table is removed.)
+drop table if exists public.consultant_codes;
+alter table public.consultants add column if not exists verified_at timestamptz; -- when sign-up finished
+alter table public.consultants add column if not exists signup_ip text; -- keyed hash, only to limit mass sign-ups
+create index if not exists consultants_signup_ip on public.consultants (signup_ip, created_at);
 -- Consultant passwords (scrypt hash; never the password itself), lock-out after repeated wrong tries,
 -- and their profile.
 alter table public.consultants add column if not exists password_hash text;
@@ -115,9 +106,6 @@ alter table public.consultants add column if not exists languages text[] not nul
 alter table public.consultants add column if not exists city text;
 alter table public.consultants add column if not exists bio text;
 alter table public.consultants add column if not exists portfolio_url text;
--- Codes the admin hands out (e.g. on WhatsApp) instead of emailing.
-alter table public.consultant_codes add column if not exists created_by text not null default 'email'; -- email | admin
-alter table public.consultant_codes enable row level security;
 
 -- A consultant asking to take a booking; the admin accepts one request per booking.
 create table if not exists public.booking_requests (
