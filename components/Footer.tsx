@@ -68,6 +68,11 @@ export default async function Footer() {
                   Book Consultation
                 </Link>
               </li>
+              <li>
+                <Link href="/consultant" className="inline-block py-1 text-muted hover:text-chocolate">
+                  Consultant sign-in
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>

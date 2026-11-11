@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { CalendarCog, MessageCircle } from "lucide-react";
+import { CalendarCog, MessageCircle, Users } from "lucide-react";
 import Link from "next/link";
 import { formatWhen } from "@/lib/time";
 import { consultationLinks } from "@/lib/meeting";
@@ -10,7 +10,11 @@ import {
   recentIntakes,
   signedUrls,
   supabaseConfigured,
+  listConsultants,
+  requestsForBookings,
   unusedDiscountForPhone,
+  type BookingRequest,
+  type Consultant,
   upcomingBookings,
   type BookingRow,
   type Intake,
@@ -18,13 +22,76 @@ import {
 } from "@/lib/supabase";
 import CopyButton from "./CopyButton";
 import IntakeSummary from "./IntakeSummary";
+import { acceptRequestAction, declineRequestAction, unassignAction } from "./consultants/actions";
 
 export const metadata: Metadata = {
   title: "Bookings | NAZAAKAT",
   robots: { index: false, follow: false },
 };
 
-async function BookingCard({ booking }: { booking: BookingRow }) {
+function ConsultantPanel({ booking, requests, consultants }: { booking: BookingRow; requests: BookingRequest[]; consultants: Map<string, Consultant> }) {
+  const assigned = booking.consultant_id ? consultants.get(booking.consultant_id) : null;
+  const pending = requests.filter((r) => r.status === "pending");
+  return (
+    <div className="mt-4 border-t border-taupe/40 pt-4">
+      {assigned ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-base text-charcoal">
+            Consultant: <strong className="font-medium">{assigned.name}</strong>
+            {assigned.phone ? <span className="text-muted"> · +{assigned.phone}</span> : null}
+          </p>
+          <form action={unassignAction}>
+            <input type="hidden" name="id" value={booking.id} />
+            <button type="submit" className="text-sm text-muted underline underline-offset-4 hover:text-[#a3182c]">
+              Take back
+            </button>
+          </form>
+        </div>
+      ) : pending.length === 0 ? (
+        <p className="text-sm text-muted">No consultant yet. Consultants can ask to take it from their page.</p>
+      ) : (
+        <div>
+          <p className="text-base font-medium text-charcoal">{pending.length === 1 ? "1 consultant wants" : `${pending.length} consultants want`} this booking</p>
+          <ul className="mt-2 space-y-2">
+            {pending.map((r) => {
+              const c = consultants.get(r.consultant_id);
+              return (
+                <li key={r.id} className="flex flex-wrap items-center gap-3">
+                  <span className="text-base text-charcoal">
+                    {c?.name ?? "A removed consultant"}
+                    {c?.phone ? <span className="text-muted"> · +{c.phone}</span> : null}
+                  </span>
+                  <form action={acceptRequestAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="btn-primary min-h-9 px-4 text-sm">
+                      Accept
+                    </button>
+                  </form>
+                  <form action={declineRequestAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="btn-secondary min-h-9 px-4 text-sm">
+                      Decline
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+async function BookingCard({
+  booking,
+  requests,
+  consultants,
+}: {
+  booking: BookingRow;
+  requests: BookingRequest[];
+  consultants: Map<string, Consultant>;
+}) {
   const links = consultationLinks(site.url, booking.room);
   const infoLink = `${site.url.replace(/\/$/, "")}/admin/booking/${booking.id}`;
   const when = formatWhen(booking.starts_at);
@@ -68,6 +135,8 @@ async function BookingCard({ booking }: { booking: BookingRow }) {
       ) : (
         <p className="mt-2 text-sm text-muted">No body-shape discount on this number</p>
       )}
+
+      <ConsultantPanel booking={booking} requests={requests} consultants={consultants} />
 
       <div className="mt-5 flex flex-wrap gap-3">
         <a
@@ -129,10 +198,21 @@ async function Bookings() {
 
   if (bookings.length === 0) return <p className="text-lg text-muted">No upcoming bookings.</p>;
 
+  // Consultant requests: optional, so a missing table (schema not re-run yet) never hides the bookings.
+  let requests: BookingRequest[] = [];
+  let consultants = new Map<string, Consultant>();
+  try {
+    const [r, c] = await Promise.all([requestsForBookings(bookings.map((b) => b.id)), listConsultants()]);
+    requests = r;
+    consultants = new Map(c.map((x) => [x.id, x]));
+  } catch (err) {
+    console.error("[admin] Could not load consultant requests (run the current supabase/schema.sql).", err);
+  }
+
   return (
     <ul className="space-y-6">
       {bookings.map((b) => (
-        <BookingCard key={b.id} booking={b} />
+        <BookingCard key={b.id} booking={b} requests={requests.filter((r) => r.booking_id === b.id)} consultants={consultants} />
       ))}
     </ul>
   );
@@ -181,9 +261,14 @@ export default function AdminPage() {
             see this booking&apos;s details.
           </p>
         </div>
-        <Link href="/admin/availability" className="btn-secondary min-h-12 shrink-0 px-5 text-base">
-          <CalendarCog size={18} strokeWidth={1.5} aria-hidden /> Manage availability
-        </Link>
+        <div className="flex shrink-0 flex-wrap gap-3">
+          <Link href="/admin/availability" className="btn-secondary min-h-12 px-5 text-base">
+            <CalendarCog size={18} strokeWidth={1.5} aria-hidden /> Manage availability
+          </Link>
+          <Link href="/admin/consultants" className="btn-secondary min-h-12 px-5 text-base">
+            <Users size={18} strokeWidth={1.5} aria-hidden /> Consultants
+          </Link>
+        </div>
       </div>
       {wa && (
         <a href={wa} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block text-base text-muted underline underline-offset-4 hover:text-chocolate">

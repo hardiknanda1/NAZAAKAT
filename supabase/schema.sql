@@ -77,6 +77,45 @@ create table if not exists public.shape_discounts (
 );
 alter table public.shape_discounts enable row level security;
 
+-- Consultants: added by the admin; they sign in with a one-time code emailed to them.
+create table if not exists public.consultants (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name text not null,
+  email text not null unique, -- stored in lower case
+  phone text, -- digits with country code
+  active boolean not null default true
+);
+alter table public.consultants enable row level security;
+
+-- One-time sign-in codes. Only a keyed hash of the code is stored; each expires after 10 minutes.
+create table if not exists public.consultant_codes (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  consultant_id uuid not null references public.consultants (id) on delete cascade,
+  code_hash text not null,
+  expires_at timestamptz not null,
+  attempts int not null default 0,
+  used_at timestamptz
+);
+create index if not exists consultant_codes_consultant on public.consultant_codes (consultant_id, created_at);
+alter table public.consultant_codes enable row level security;
+
+-- A consultant asking to take a booking; the admin accepts one request per booking.
+create table if not exists public.booking_requests (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  booking_id uuid not null references public.bookings (id) on delete cascade,
+  consultant_id uuid not null references public.consultants (id) on delete cascade,
+  status text not null default 'pending', -- pending | accepted | declined
+  decided_at timestamptz,
+  unique (booking_id, consultant_id)
+);
+alter table public.booking_requests enable row level security;
+
+-- The consultant the admin assigned to a booking.
+alter table public.bookings add column if not exists consultant_id uuid references public.consultants (id) on delete set null;
+
 -- Row level security is on with no policies anywhere above: only the website's server (secret key)
 -- can read or write any of this. Visitors and the publishable key see nothing.
 

@@ -187,6 +187,28 @@ One password (`ADMIN_PASSWORD`) protects everything under `/admin`. Each upcomin
   **same admin password**, and see only that booking: its time, the questionnaire and photos, the
   consultant (host) link, and the catalogue upload below.
 
+### Consultants (`/consultant`)
+
+Add consultants (name, email, phone) under **Admin -> Consultants**. They sign in at `/consultant` with
+a 6-digit code emailed to them through Resend: no password, no sign-up. Only emails on your list can sign
+in, and pausing or removing a consultant signs them out straight away.
+
+Signed in, a consultant sees upcoming bookings that nobody has been given yet (time, length and the
+client's first name only) and can **ask to take** one. You get an email, and the booking's card on the
+admin page shows the request with **Accept** / **Decline**. Accepting gives the booking to that consultant
+(only one can ever be accepted) and declines the others; the booking then appears under their
+"Your consultations" with the consultant (host) video link. **Take back** on the card undoes it.
+
+Codes are stored only as keyed hashes, expire after 10 minutes, allow 5 tries, and each one works once;
+a consultant can ask for one code a minute and five an hour. The form gives the same reply for emails that
+aren't on the list, so it can't be used to find out who is a consultant.
+
+**Email:** codes go out through Resend (`RESEND_API_KEY`). Resend's free test sender only delivers to the
+email the Resend account was made with, so for consultants' own inboxes, verify a domain in Resend and
+set `NOTIFY_FROM_EMAIL` to an address on it. In local development without Resend, the code is printed in
+the terminal instead. Re-run `supabase/schema.sql` once to add the `consultants`, `consultant_codes` and
+`booking_requests` tables.
+
 ### A booking's own catalogue
 
 Each booking can have its own catalogue, shown beside the video during that call. On that booking's
