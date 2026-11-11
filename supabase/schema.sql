@@ -99,6 +99,10 @@ create table if not exists public.consultant_codes (
   used_at timestamptz
 );
 create index if not exists consultant_codes_consultant on public.consultant_codes (consultant_id, created_at);
+-- Anyone can sign up as a consultant: an account counts once its email is proven with a code.
+alter table public.consultants add column if not exists verified_at timestamptz;
+alter table public.consultant_codes add column if not exists ip_hash text; -- keyed hash, only for rate limits
+create index if not exists consultant_codes_ip on public.consultant_codes (ip_hash, created_at);
 alter table public.consultant_codes enable row level security;
 
 -- A consultant asking to take a booking; the admin accepts one request per booking.

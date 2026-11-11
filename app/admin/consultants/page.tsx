@@ -21,7 +21,7 @@ async function List() {
     console.error("[admin/consultants] Could not load consultants.", err);
     return <p role="alert" className="text-lg text-chocolate">Could not load consultants. Run the current supabase/schema.sql, then refresh.</p>;
   }
-  if (consultants.length === 0) return <p className="text-lg text-muted">No consultants added yet.</p>;
+  if (consultants.length === 0) return <p className="text-lg text-muted">No consultants yet. They appear here once they sign up and enter their emailed code.</p>;
   return (
     <ul className="divide-y divide-taupe/40 border-y border-taupe/40">
       {consultants.map((c) => (
@@ -65,8 +65,9 @@ export default function ConsultantsPage() {
       </Link>
       <h1 className="mt-4 font-serif text-5xl font-medium text-charcoal">Consultants</h1>
       <p className="mt-3 max-w-2xl text-lg text-muted">
-        Consultants sign in at <strong className="font-medium text-charcoal">{loginUrl}</strong> with a code emailed to them, ask to take
-        open bookings, and see the consultant link once you accept. Pausing someone signs them out at once.
+        Anyone can sign up as a consultant at <strong className="font-medium text-charcoal">{loginUrl}</strong> with their name, email
+        and phone; they prove the email with a code sent to it, then appear here. They can ask to take open bookings and see the
+        consultant link once you accept. Pause someone to stop them signing in (it signs them out at once).
       </p>
       <div className="mt-4">
         <CopyButton text={loginUrl} label="Copy sign-in link" />

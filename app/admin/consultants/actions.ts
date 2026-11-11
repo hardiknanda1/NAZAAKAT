@@ -22,7 +22,8 @@ export async function addConsultantAction(_prev: { error: string; ok?: boolean }
   if (!email) return { error: "Please enter a valid email address." };
   if (phoneRaw && !phone) return { error: "Please enter a valid phone number, or leave it empty." };
   try {
-    if (!(await addConsultant({ name, email, phone }))) return { error: "A consultant with this email is already on the list." };
+    // Added by the admin, so it counts straight away (they still sign in with an emailed code).
+    if (!(await addConsultant({ name, email, phone, verified_at: new Date().toISOString() }))) return { error: "A consultant with this email is already on the list." };
   } catch (err) {
     console.error("[admin/consultants] Could not add a consultant.", err);
     return { error: "Could not save just now. Check that supabase/schema.sql has been run, then try again." };
