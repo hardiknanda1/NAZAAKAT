@@ -5,8 +5,8 @@ import { consultantByEmail, supabaseConfigured, updateConsultant } from "@/lib/s
 const MAX_TRIES = 5;
 const LOCK_MINUTES = 15;
 
-// Email and password sign-in. After 5 wrong passwords the account is locked for 15 minutes (a code
-// from "Forgot password" still works). Every failure gives the same answer.
+// Email and password sign-in. After 5 wrong passwords the account is locked for 15 minutes (a temporary
+// password from the admin clears the lock). Every failure gives the same answer.
 export async function POST(request: Request) {
   if (!supabaseConfigured() || !authConfigured()) return Response.json({ error: "not_configured" }, { status: 503 });
   let body: { email?: string; password?: string };

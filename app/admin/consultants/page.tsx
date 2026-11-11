@@ -8,7 +8,7 @@ import { formatShort } from "@/lib/time";
 import { CONSULTANT_PHOTO_BUCKET, bookingCountsByConsultant, listAllConsultants, signedUrls, supabaseConfigured, type Consultant } from "@/lib/supabase";
 import CopyButton from "../CopyButton";
 import AddConsultantForm from "./AddConsultantForm";
-import OneTimeCode from "./OneTimeCode";
+import TempPassword from "./TempPassword";
 import { removeConsultantAction, setActiveAction } from "./actions";
 
 export const metadata: Metadata = { title: "Consultants | NAZAAKAT", robots: { index: false, follow: false } };
@@ -68,14 +68,14 @@ function Card({ c, photo, bookings, loginUrl }: { c: Consultant; photo: string |
             </Row>
             {c.bio && <Row label="About">{c.bio}</Row>}
             <Row label="Account">
-              {c.verified_at ? "Email confirmed" : "Email not confirmed yet"} · {c.password_hash ? "password set" : "no password yet"} · joined {formatShort(c.created_at)}
+              {c.password_hash ? "Password set" : "No password yet (use Reset password)"} · joined {formatShort(c.created_at)}
             </Row>
             <Row label="Bookings given">{bookings}</Row>
           </dl>
         </div>
       </div>
       <div className="mt-5 flex flex-wrap items-start gap-3 border-t border-taupe/40 pt-4">
-        <OneTimeCode id={c.id} name={c.name} phone={c.phone} loginUrl={loginUrl} />
+        <TempPassword id={c.id} name={c.name} email={c.email} phone={c.phone} loginUrl={loginUrl} />
         <form action={setActiveAction}>
           <input type="hidden" name="id" value={c.id} />
           <input type="hidden" name="active" value={String(!c.active)} />
@@ -109,31 +109,19 @@ async function List({ loginUrl }: { loginUrl: string }) {
     console.error("[admin/consultants] Could not load consultants.", err);
     return <p role="alert" className="text-lg text-chocolate">Could not load consultants. Run the current supabase/schema.sql, then refresh.</p>;
   }
-  const confirmed = consultants.filter((c) => c.verified_at);
-  const waiting = consultants.filter((c) => !c.verified_at);
-  const card = (c: Consultant) => <Card key={c.id} c={c} photo={c.photo_path ? (photos[c.photo_path] ?? null) : null} bookings={counts[c.id] || 0} loginUrl={loginUrl} />;
-
   return (
-    <div className="space-y-12">
-      <section>
-        <h2 className="font-serif text-3xl font-medium text-charcoal">Consultants ({confirmed.length})</h2>
-        {confirmed.length === 0 ? (
-          <p className="mt-3 text-lg text-muted">No consultants yet. They appear here once they sign up and confirm their email.</p>
-        ) : (
-          <ul className="mt-5 space-y-5">{confirmed.map(card)}</ul>
-        )}
-      </section>
-      {waiting.length > 0 && (
-        <section>
-          <h2 className="font-serif text-3xl font-medium text-charcoal">Signed up, email not confirmed ({waiting.length})</h2>
-          <p className="mt-2 text-base text-muted">
-            They entered their details but not the emailed code yet. If the email never reached them, give them a one-time code on
-            WhatsApp instead.
-          </p>
-          <ul className="mt-5 space-y-5">{waiting.map(card)}</ul>
-        </section>
+    <section>
+      <h2 className="font-serif text-3xl font-medium text-charcoal">Consultants ({consultants.length})</h2>
+      {consultants.length === 0 ? (
+        <p className="mt-3 text-lg text-muted">No consultants yet. They appear here as soon as they sign up.</p>
+      ) : (
+        <ul className="mt-5 space-y-5">
+          {consultants.map((c) => (
+            <Card key={c.id} c={c} photo={c.photo_path ? (photos[c.photo_path] ?? null) : null} bookings={counts[c.id] || 0} loginUrl={loginUrl} />
+          ))}
+        </ul>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -146,16 +134,16 @@ export default function ConsultantsPage() {
       </Link>
       <h1 className="mt-4 font-serif text-5xl font-medium text-charcoal">Consultants</h1>
       <p className="mt-3 max-w-2xl text-lg text-muted">
-        Anyone can sign up at <strong className="font-medium text-charcoal">{loginUrl}</strong> with their name, email and phone, confirm
-        the email with a code, set a password and fill in their profile. They ask to take open bookings, and see the consultant link
-        once you accept. <strong className="font-medium text-charcoal">Give one-time code</strong> lets someone sign in or reset their
-        password when email can&apos;t reach them. Pausing someone signs them out at once.
+        Anyone can sign up at <strong className="font-medium text-charcoal">{loginUrl}</strong> with their name, email, phone and a
+        password, then fill in their profile. They ask to take open bookings, and see the consultant link once you accept. If someone
+        forgets their password, <strong className="font-medium text-charcoal">Reset password</strong> gives you a temporary one to send
+        them on WhatsApp. Pausing someone signs them out at once.
       </p>
       <div className="mt-4">
         <CopyButton text={loginUrl} label="Copy sign-in link" />
       </div>
       <div className="mt-10">
-        <AddConsultantForm />
+        <AddConsultantForm loginUrl={loginUrl} />
       </div>
       <div className="mt-12">
         <Suspense fallback={<p className="text-lg text-muted">Loading…</p>}>

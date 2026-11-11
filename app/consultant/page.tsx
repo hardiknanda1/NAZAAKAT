@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import CopyButton from "@/app/admin/CopyButton";
 import { currentConsultant } from "@/lib/consultantAuth";
 import { consultationLinks } from "@/lib/meeting";
-import { site } from "@/lib/site";
+import { consultantHelp, site } from "@/lib/site";
 import { formatWhen } from "@/lib/time";
 import { consultantBookings, requestsByConsultant, unassignedBookings, type BookingRow } from "@/lib/supabase";
 import ConsultantLogin from "./ConsultantLogin";
@@ -44,7 +44,7 @@ export default function ConsultantPage() {
 async function Dashboard() {
   await connection();
   const consultant = await currentConsultant();
-  if (!consultant) return <ConsultantLogin />;
+  if (!consultant) return <ConsultantLogin {...consultantHelp()} />;
 
   const now = new Date().toISOString();
   let mine: BookingRow[] = [];
@@ -80,7 +80,7 @@ async function Dashboard() {
           href="/consultant/profile"
           className="mt-6 block border border-chocolate/40 bg-beige/60 p-4 text-base text-charcoal transition-colors hover:border-chocolate"
         >
-          {!consultant.password_hash ? "Set a password so you can sign in without a code, " : "Finish your profile: "}
+          {!consultant.password_hash ? "Set a password so you can sign in next time, " : "Finish your profile: "}
           <span className="underline underline-offset-4">
             {!consultant.password_hash ? "and finish your profile" : "add your expertise, experience and photo"}
           </span>

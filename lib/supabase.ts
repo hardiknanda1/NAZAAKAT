@@ -417,7 +417,7 @@ export async function redeemDiscount(id: string, phone: string, bookingId: strin
   return rows[0].percent;
 }
 
-// ---- Consultants, their sign-in codes, and their requests to take bookings ----
+// ---- Consultants and their requests to take bookings ----
 
 export type Consultant = {
   id: string;
@@ -426,7 +426,7 @@ export type Consultant = {
   email: string;
   phone: string | null;
   active: boolean;
-  verified_at: string | null; // set once they prove the email with a code (or the admin adds them)
+  verified_at: string | null; // set when they finish signing up (empty only for old half-finished sign-ups)
   password_hash: string | null;
   failed_logins: number;
   locked_until: string | null;
@@ -438,7 +438,6 @@ export type Consultant = {
   bio: string | null;
   portfolio_url: string | null;
 };
-export type ConsultantCode = { id: string; created_at: string; consultant_id: string; code_hash: string; expires_at: string; attempts: number; used_at: string | null };
 export type BookingRequest = {
   id: string;
   created_at: string;
@@ -465,10 +464,10 @@ async function write<T>(path: string, method: "POST" | "PATCH", body: unknown, w
   return res.json();
 }
 
-/** Everyone who has signed up, including those who haven't entered their email code yet. */
-export const listAllConsultants = () => rows<Consultant>("/consultants?select=*&order=created_at.desc", "read consultants");
+/** Everyone who has finished signing up, newest first (for the admin's consultants page). */
+export const listAllConsultants = () => rows<Consultant>("/consultants?verified_at=not.is.null&select=*&order=created_at.desc", "read consultants");
 
-/** Consultants whose email is proven (half-finished sign-ups are left out). */
+/** Consultants who have finished signing up, by name. */
 export const listConsultants = () => rows<Consultant>("/consultants?verified_at=not.is.null&select=*&order=name.asc", "read consultants");
 
 export async function getConsultant(id: string): Promise<Consultant | null> {
@@ -480,7 +479,7 @@ export async function consultantByEmail(email: string): Promise<Consultant | nul
 }
 
 /** Adds a consultant; returns null if that email is already on the list. */
-export async function addConsultant(c: { name: string; email: string; phone: string | null; verified_at?: string | null }): Promise<Consultant | null> {
+export async function addConsultant(c: Partial<Consultant> & { name: string; email: string; signup_ip?: string }): Promise<Consultant | null> {
   const res = await fetch(rest("/consultants"), {
     method: "POST",
     headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
@@ -499,45 +498,17 @@ export async function deleteConsultant(id: string) {
   await check(await fetch(rest(`/consultants?id=eq.${id}`), { method: "DELETE", headers: headers() }), "remove consultant");
 }
 
-/** Updates the name and phone of a sign-up that hasn't proven its email yet (a proven account is never changed this way). */
-export async function updateUnverifiedConsultant(id: string, c: { name: string; phone: string }) {
-  await write(`/consultants?id=eq.${id}&verified_at=is.null`, "PATCH", c, "update sign-up");
+/**
+ * Takes over a half-finished sign-up from the old email-code flow (never confirmed, no password), so
+ * that email can sign up properly. A real account is never changed this way. Returns it, or null.
+ */
+export async function claimUnfinishedSignup(id: string, c: Partial<Consultant> & { signup_ip?: string }): Promise<Consultant | null> {
+  return (await write<Consultant>(`/consultants?id=eq.${id}&verified_at=is.null&password_hash=is.null`, "PATCH", c, "update sign-up"))[0] ?? null;
 }
 
-export async function markConsultantVerified(id: string) {
-  await write(`/consultants?id=eq.${id}&verified_at=is.null`, "PATCH", { verified_at: new Date().toISOString() }, "verify consultant");
-}
-
-export async function codesFromIpSince(ipHash: string, sinceIso: string) {
-  return (await rows<{ id: string }>(`/consultant_codes?ip_hash=eq.${ipHash}&created_at=gte.${encodeURIComponent(sinceIso)}&select=id`, "count codes")).length;
-}
-
-export async function createCode(
-  c: Pick<ConsultantCode, "consultant_id" | "code_hash" | "expires_at"> & { ip_hash?: string; created_by?: "email" | "admin" },
-) {
-  await write("/consultant_codes", "POST", c, "save code");
-}
-
-export async function codesSince(consultantId: string, sinceIso: string) {
-  return (await rows<{ id: string }>(`/consultant_codes?consultant_id=eq.${consultantId}&created_at=gte.${encodeURIComponent(sinceIso)}&select=id`, "count codes")).length;
-}
-
-/** The newest code that is unused and not expired, if any. */
-export async function activeCode(consultantId: string): Promise<ConsultantCode | null> {
-  const now = encodeURIComponent(new Date().toISOString());
-  return (
-    (await rows<ConsultantCode>(`/consultant_codes?consultant_id=eq.${consultantId}&used_at=is.null&expires_at=gt.${now}&select=*&order=created_at.desc&limit=1`, "read code"))[0] ??
-    null
-  );
-}
-
-export async function countCodeAttempt(id: string, attempts: number) {
-  await write(`/consultant_codes?id=eq.${id}`, "PATCH", { attempts }, "update code");
-}
-
-/** Marks the code used; false if it was already used (so it can never sign in twice). */
-export async function spendCode(id: string) {
-  return (await write(`/consultant_codes?id=eq.${id}&used_at=is.null`, "PATCH", { used_at: new Date().toISOString() }, "use code")).length === 1;
+/** Sign-ups from one network (keyed hash of the IP) since a time, to stop scripted mass sign-ups. */
+export async function signupsFromIpSince(ipHash: string, sinceIso: string) {
+  return (await rows<{ id: string }>(`/consultants?signup_ip=eq.${ipHash}&created_at=gte.${encodeURIComponent(sinceIso)}&select=id`, "count sign-ups")).length;
 }
 
 /** Upcoming confirmed bookings no consultant has been given yet. */

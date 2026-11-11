@@ -2,44 +2,39 @@
 
 import { refresh } from "next/cache";
 import { isSignedIn } from "@/app/admin/actions";
-import { hashCode, newCode, normaliseEmail } from "@/lib/consultantAuth";
+import { normaliseEmail, tempPassword } from "@/lib/consultantAuth";
+import { hashPassword } from "@/lib/password";
 import { normalisePhone } from "@/lib/phone";
 import {
   acceptRequest,
   addConsultant,
-  createCode,
   declineRequest,
   deleteConsultant,
   getConsultant,
   setConsultantActive,
   unassignBooking,
+  updateConsultant,
 } from "@/lib/supabase";
 
-const ADMIN_CODE_HOURS = 24;
-
 /**
- * A one-time code for a consultant that the admin sends them (e.g. on WhatsApp) instead of email. It
- * signs them in, or lets them set a new password with "Forgot password", for 24 hours.
+ * Sets a temporary password for a consultant who forgot theirs (there are no emailed codes). The admin
+ * sends it to them, e.g. on WhatsApp; they sign in with it and can change it on their profile page.
  */
-export async function oneTimeCodeAction(_prev: { code?: string; error?: string } | null, form: FormData) {
+export async function tempPasswordAction(_prev: { password?: string; error?: string } | null, form: FormData) {
   const c = String(form.get("id") || "");
   if (!(await isSignedIn()) || !UUID.test(c)) return { error: "Your sign-in has expired. Please refresh and sign in again." };
   const consultant = await getConsultant(c).catch(() => null);
   if (!consultant) return { error: "This consultant could not be found." };
   if (!consultant.active) return { error: "This consultant is paused. Allow them again first." };
-  const code = newCode();
+  const password = tempPassword();
   try {
-    await createCode({
-      consultant_id: consultant.id,
-      code_hash: hashCode(consultant.id, code),
-      expires_at: new Date(Date.now() + ADMIN_CODE_HOURS * 3_600_000).toISOString(),
-      created_by: "admin",
-    });
+    await updateConsultant(consultant.id, { password_hash: await hashPassword(password), failed_logins: 0, locked_until: null });
   } catch (err) {
-    console.error("[admin/consultants] Could not create a code.", err);
-    return { error: "Could not create a code just now. Please try again." };
+    console.error("[admin/consultants] Could not set a temporary password.", err);
+    return { error: "Could not set a password just now. Please try again." };
   }
-  return { code };
+  refresh();
+  return { password };
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -48,7 +43,10 @@ const id = (form: FormData) => {
   return UUID.test(v) ? v : null;
 };
 
-export async function addConsultantAction(_prev: { error: string; ok?: boolean } | null, form: FormData) {
+type Added = { error: string; ok?: boolean; name?: string; phone?: string | null; email?: string; password?: string };
+
+/** Adds a consultant with a temporary password for the admin to send them. */
+export async function addConsultantAction(_prev: Added | null, form: FormData): Promise<Added> {
   if (!(await isSignedIn())) return { error: "Your sign-in has expired. Please refresh and sign in again." };
   const name = String(form.get("name") || "").trim().slice(0, 120);
   const email = normaliseEmail(form.get("email"));
@@ -57,15 +55,16 @@ export async function addConsultantAction(_prev: { error: string; ok?: boolean }
   if (!name) return { error: "Please enter a name." };
   if (!email) return { error: "Please enter a valid email address." };
   if (phoneRaw && !phone) return { error: "Please enter a valid phone number, or leave it empty." };
+  const password = tempPassword();
   try {
-    // Added by the admin, so it counts straight away (they still sign in with an emailed code).
-    if (!(await addConsultant({ name, email, phone, verified_at: new Date().toISOString() }))) return { error: "A consultant with this email is already on the list." };
+    const added = await addConsultant({ name, email, phone, verified_at: new Date().toISOString(), password_hash: await hashPassword(password) });
+    if (!added) return { error: "A consultant with this email is already on the list." };
   } catch (err) {
     console.error("[admin/consultants] Could not add a consultant.", err);
     return { error: "Could not save just now. Check that supabase/schema.sql has been run, then try again." };
   }
   refresh();
-  return { error: "", ok: true };
+  return { error: "", ok: true, name, phone, email, password };
 }
 
 export async function setActiveAction(form: FormData) {

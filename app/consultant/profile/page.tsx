@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { currentConsultant } from "@/lib/consultantAuth";
+import { consultantHelp } from "@/lib/site";
 import { CONSULTANT_PHOTO_BUCKET, signedUrls } from "@/lib/supabase";
 import ConsultantLogin from "../ConsultantLogin";
 import PasswordSection from "./PasswordSection";
@@ -11,7 +12,7 @@ import ProfileForm from "./ProfileForm";
 async function Profile({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   await connection();
   const consultant = await currentConsultant();
-  if (!consultant) return <ConsultantLogin />;
+  if (!consultant) return <ConsultantLogin {...consultantHelp()} />;
   const welcome = (await searchParams).welcome === "1";
   const photoUrl = consultant.photo_path
     ? ((await signedUrls(CONSULTANT_PHOTO_BUCKET, [consultant.photo_path]).catch(() => ({}) as Record<string, string>))[consultant.photo_path] ?? null)
@@ -24,10 +25,10 @@ async function Profile({ searchParams }: { searchParams: Promise<{ welcome?: str
       </Link>
       <h1 className="mt-4 font-serif text-5xl font-medium text-charcoal">Your profile</h1>
       {welcome && (
-        <p className="mt-3 text-lg text-muted">Welcome! Set a password so you can sign in quickly next time, then tell us a little about yourself.</p>
+        <p className="mt-3 text-lg text-muted">Welcome to NAZAAKAT! Your account is ready. Tell us a little about yourself so we can match you with the right clients.</p>
       )}
       <div className="mt-10 space-y-10">
-        <PasswordSection hasPassword={Boolean(consultant.password_hash)} highlight={!consultant.password_hash} />
+        {!consultant.password_hash && <PasswordSection hasPassword={Boolean(consultant.password_hash)} highlight={!consultant.password_hash} />}
         <ProfileForm
           email={consultant.email}
           photoUrl={photoUrl}
@@ -42,6 +43,7 @@ async function Profile({ searchParams }: { searchParams: Promise<{ welcome?: str
             portfolio_url: consultant.portfolio_url ?? "",
           }}
         />
+        {consultant.password_hash && <PasswordSection hasPassword highlight={false} />}
       </div>
     </div>
   );
