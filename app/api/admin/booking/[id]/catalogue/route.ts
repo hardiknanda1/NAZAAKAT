@@ -1,30 +1,19 @@
-import { unzipSync } from "fflate";
 import { isSignedIn } from "@/app/admin/actions";
-import { imageDimensions } from "@/lib/image-size";
-import { clearCatalogueFolder, getBooking, setBookingCatalogue, supabaseConfigured, uploadCatalogueFile, type Catalogue } from "@/lib/supabase";
+import { clearCatalogueFolder, getBooking, setBookingCatalogue, signedCatalogueUploads, supabaseConfigured, type Catalogue } from "@/lib/supabase";
+
+// A booking's catalogue, in two small steps so large files never pass through this server (requests here
+// are capped at 4.5 MB): the admin page unzips the catalogue itself, asks "start" for one-time upload
+// links, uploads each page (or the PDF) straight to Supabase Storage, then calls "finish" with the list.
 
 const MAX_PAGES = 80;
-const MAX_IMAGE_BYTES = 6_000_000;
-const MAX_ZIP_BYTES = 80_000_000;
-const MAX_PDF_BYTES = 25_000_000;
-const IMAGE_EXT: Record<string, string> = { jpg: "jpg", jpeg: "jpg", png: "png", webp: "webp" };
+const EXT = new Set(["jpg", "png", "webp"]);
 
-// Orders "page 2.png" before "page 10.png": splits into text/number chunks and compares numbers as numbers.
-function naturalCompare(a: string, b: string) {
-  const split = (s: string) => s.match(/\d+|\D+/g) || [s];
-  const ap = split(a);
-  const bp = split(b);
-  for (let i = 0; i < Math.max(ap.length, bp.length); i++) {
-    const x = ap[i] ?? "";
-    const y = bp[i] ?? "";
-    if (x === y) continue;
-    const nx = Number(x);
-    const ny = Number(y);
-    if (!Number.isNaN(nx) && !Number.isNaN(ny)) return nx - ny;
-    return x < y ? -1 : 1;
-  }
-  return 0;
-}
+type Start = { action: "start"; kind: "images"; count: number; exts: string[] } | { action: "start"; kind: "pdf" };
+type Finish =
+  | { action: "finish"; kind: "images"; pages: { path: string; width: number; height: number }[] }
+  | { action: "finish"; kind: "pdf"; name: string };
+
+const pagePath = (id: string, i: number, ext: string) => `${id}/${String(i + 1).padStart(2, "0")}.${ext}`;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isSignedIn())) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -34,64 +23,48 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const booking = await getBooking(id).catch(() => null);
   if (!booking) return Response.json({ error: "not_found" }, { status: 404 });
 
-  let form: FormData;
+  let body: Start | Finish;
   try {
-    form = await request.formData();
+    body = await request.json();
   } catch {
-    return Response.json({ error: "too_large" }, { status: 413 });
+    return Response.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) return Response.json({ error: "no_file" }, { status: 400 });
-
-  const isZip = file.type.includes("zip") || /\.zip$/i.test(file.name);
-  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
-  if (!isZip && !isPdf) return Response.json({ error: "bad_type" }, { status: 400 });
-
   try {
-    await clearCatalogueFolder(id);
+    if (body.action === "start") {
+      let paths: string[];
+      if (body.kind === "pdf") {
+        paths = [`${id}/catalogue.pdf`];
+      } else {
+        const exts = Array.isArray(body.exts) ? body.exts : [];
+        if (exts.length === 0) return Response.json({ error: "no_images" }, { status: 400 });
+        if (exts.length > MAX_PAGES) return Response.json({ error: "too_many_pages" }, { status: 400 });
+        if (exts.some((e) => !EXT.has(e))) return Response.json({ error: "bad_type" }, { status: 400 });
+        paths = exts.map((e, i) => pagePath(id, i, e));
+      }
+      await clearCatalogueFolder(id);
+      return Response.json({ ok: true, uploads: await signedCatalogueUploads(paths) });
+    }
 
-    if (isPdf) {
-      if (file.size > MAX_PDF_BYTES) return Response.json({ error: "too_large" }, { status: 413 });
-      await uploadCatalogueFile(`${id}/catalogue.pdf`, await file.arrayBuffer(), "application/pdf");
-      const catalogue: Catalogue = { type: "pdf", path: `${id}/catalogue.pdf`, name: file.name.slice(0, 160) };
+    if (body.action === "finish") {
+      let catalogue: Catalogue;
+      if (body.kind === "pdf") {
+        catalogue = { type: "pdf", path: `${id}/catalogue.pdf`, name: String(body.name || "catalogue.pdf").slice(0, 160) };
+      } else {
+        const pages = Array.isArray(body.pages) ? body.pages.slice(0, MAX_PAGES) : [];
+        // Only this booking's own page paths, in the shape "start" handed out.
+        const ok = pages.length > 0 && pages.every((p, i) => typeof p?.path === "string" && p.path === pagePath(id, i, p.path.split(".").pop() || "") && EXT.has(p.path.split(".").pop() || ""));
+        if (!ok) return Response.json({ error: "bad_request" }, { status: 400 });
+        catalogue = {
+          type: "images",
+          pages: pages.map((p) => ({ path: p.path, width: Math.max(1, Math.round(Number(p.width)) || 1000), height: Math.max(1, Math.round(Number(p.height)) || 1400) })),
+        };
+      }
       await setBookingCatalogue(id, catalogue);
       return Response.json({ ok: true, catalogue });
     }
 
-    if (file.size > MAX_ZIP_BYTES) return Response.json({ error: "too_large" }, { status: 413 });
-    const buf = new Uint8Array(await file.arrayBuffer());
-    let entries: Record<string, Uint8Array>;
-    try {
-      entries = unzipSync(buf, {
-        filter: (f) => !f.name.startsWith("__MACOSX/") && !f.name.split("/").pop()?.startsWith("."),
-      });
-    } catch {
-      return Response.json({ error: "bad_zip" }, { status: 400 });
-    }
-
-    const names = Object.keys(entries)
-      .filter((n) => !n.endsWith("/"))
-      .filter((n) => IMAGE_EXT[n.split(".").pop()?.toLowerCase() || ""])
-      .sort(naturalCompare);
-
-    if (names.length === 0) return Response.json({ error: "no_images" }, { status: 400 });
-    if (names.length > MAX_PAGES) return Response.json({ error: "too_many_pages" }, { status: 400 });
-    if (names.some((n) => entries[n].byteLength > MAX_IMAGE_BYTES)) return Response.json({ error: "page_too_large" }, { status: 413 });
-
-    const pages: { path: string; width: number; height: number }[] = [];
-    for (const [i, name] of names.entries()) {
-      const ext = IMAGE_EXT[name.split(".").pop()!.toLowerCase()];
-      const data = entries[name];
-      const dims = imageDimensions(Buffer.from(data)) ?? { width: 1000, height: 1400 };
-      const path = `${id}/${String(i + 1).padStart(2, "0")}.${ext}`;
-      await uploadCatalogueFile(path, data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer, `image/${ext === "jpg" ? "jpeg" : ext}`);
-      pages.push({ path, width: dims.width, height: dims.height });
-    }
-
-    const catalogue: Catalogue = { type: "images", pages };
-    await setBookingCatalogue(id, catalogue);
-    return Response.json({ ok: true, catalogue });
+    return Response.json({ error: "bad_request" }, { status: 400 });
   } catch (err) {
     console.error("[admin/catalogue] Could not save the catalogue.", err);
     return Response.json({ error: "save_failed" }, { status: 502 });

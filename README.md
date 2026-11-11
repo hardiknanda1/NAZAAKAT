@@ -193,12 +193,16 @@ Each booking can have its own catalogue, shown beside the video during that call
 page (`/admin/booking/[id]`), upload either:
 
 - **A `.zip` of page images** — name the files so they sort in the right order (`01.jpg`, `02.jpg`, …).
-  Up to 80 pages, each under 6 MB, read directly from the zip (via `fflate`, no server-side image
-  processing) and stored in the private `booking-catalogues` bucket.
-- **A single `.pdf`** — shown to both people as an embedded PDF during the call, with an "open in new
+  Up to 80 pages, each under 20 MB, stored in the private `booking-catalogues` bucket.
+- **A single `.pdf`** (up to 50 MB) — shown to both people as an embedded PDF during the call, with an "open in new
   tab" fallback. It does not get page-by-page flipping synced between the two screens the way an
   image catalogue does, since that needs a PDF renderer this project deliberately avoids (see
   "Technical notes" below).
+
+The zip is opened in the admin's browser, and each page (or the PDF) is uploaded straight to Supabase
+Storage through a one-time upload link the server hands out only to a signed-in admin. Large files never
+pass through the website's server, whose requests Vercel caps at 4.5 MB, so the zip itself can be any
+size. The server only records the final list of pages.
 
 If a booking has no catalogue uploaded, the call falls back to the one bundled with the project in
 `public/c/` (listed in `lib/catalogue.ts`).

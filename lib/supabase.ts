@@ -261,6 +261,29 @@ export async function setBookingCatalogue(id: string, catalogue: Catalogue) {
 
 // ---- Catalogue storage ----
 
+/**
+ * One-time links the admin's browser uploads catalogue files to directly, so large catalogues never pass
+ * through the website's server (which caps requests at 4.5 MB). Each link works for one path only.
+ */
+export async function signedCatalogueUploads(paths: string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const path of paths) {
+    const res = await check(
+      await fetch(`${url()}/storage/v1/object/upload/sign/${CATALOGUE_BUCKET}/${path}`, {
+        method: "POST",
+        headers: headers({ "Content-Type": "application/json", "x-upsert": "true" }),
+        body: "{}",
+        cache: "no-store",
+      }),
+      "sign upload",
+    );
+    const data: { url?: string } = await res.json();
+    if (!data.url) throw new Error(`Supabase did not return an upload link for ${path}`);
+    out[path] = `${url()}/storage/v1${data.url}`;
+  }
+  return out;
+}
+
 export async function uploadCatalogueFile(path: string, body: ArrayBuffer, contentType: string) {
   await check(
     await fetch(`${url()}/storage/v1/object/${CATALOGUE_BUCKET}/${path}`, {
