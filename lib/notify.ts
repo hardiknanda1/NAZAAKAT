@@ -7,8 +7,9 @@ import type { BookingRow } from "./supabase";
 // a failure here is logged and never blocks or fails the booking itself.
 
 // Where the "new booking" email goes. NOTIFY_EMAIL (comma-separated for several) replaces this.
+// Until a domain is verified in Resend, it can only be the Resend account's own email.
 export const notifyEmails = () =>
-  (process.env.NOTIFY_EMAIL || "hardiknanda0130@gmail.com")
+  (process.env.NOTIFY_EMAIL || "mynazaakat@gmail.com")
     .split(",")
     .map((e) => e.trim())
     .filter(Boolean);
