@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import CopyButton from "@/app/admin/CopyButton";
@@ -66,8 +67,26 @@ async function Dashboard() {
           <p className="eyebrow">Signed in as {consultant.email}</p>
           <h1 className="mt-3 font-serif text-5xl font-medium text-charcoal">Hello, {firstName(consultant.name)}</h1>
         </div>
-        <SignOutButton />
+        <div className="flex items-center gap-5">
+          <Link href="/consultant/profile" className="btn-secondary min-h-11 px-4 text-sm">
+            Your profile
+          </Link>
+          <SignOutButton />
+        </div>
       </div>
+
+      {(!consultant.password_hash || consultant.expertise.length === 0) && (
+        <Link
+          href="/consultant/profile"
+          className="mt-6 block border border-chocolate/40 bg-beige/60 p-4 text-base text-charcoal transition-colors hover:border-chocolate"
+        >
+          {!consultant.password_hash ? "Set a password so you can sign in without a code, " : "Finish your profile: "}
+          <span className="underline underline-offset-4">
+            {!consultant.password_hash ? "and finish your profile" : "add your expertise, experience and photo"}
+          </span>
+          .
+        </Link>
+      )}
 
       <section className="mt-12">
         <h2 className="font-serif text-3xl font-medium text-charcoal">Your consultations</h2>
