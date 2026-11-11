@@ -10,7 +10,9 @@ import {
   addConsultant,
   declineRequest,
   deleteConsultant,
+  getBooking,
   getConsultant,
+  removeBooking,
   setConsultantActive,
   unassignBooking,
   updateConsultant,
@@ -99,5 +101,14 @@ export async function unassignAction(form: FormData) {
   const b = id(form);
   if (!(await isSignedIn()) || !b) return;
   await unassignBooking(b);
+  refresh();
+}
+
+/** Deletes a booking for good (the admin confirms first in the browser). */
+export async function removeBookingAction(form: FormData) {
+  const b = id(form);
+  if (!(await isSignedIn()) || !b) return;
+  const booking = await getBooking(b);
+  if (booking) await removeBooking(booking);
   refresh();
 }

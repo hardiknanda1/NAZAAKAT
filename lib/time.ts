@@ -24,3 +24,6 @@ export function formatTime(iso: string) {
     return new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
   }
 }
+
+/** The current time in milliseconds (a helper, so server components can read the clock). */
+export const nowMs = () => Date.now();

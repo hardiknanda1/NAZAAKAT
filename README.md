@@ -176,7 +176,12 @@ page shows both through short-lived (1 hour) signed links.
 
 ## The admin area (`/admin`)
 
-One password (`ADMIN_PASSWORD`) protects everything under `/admin`. Each upcoming booking shows:
+One password (`ADMIN_PASSWORD`) protects everything under `/admin`. Upcoming bookings come first (one in
+progress is marked **Happening now** and stays until its slot ends). Bookings whose slot has ended move to
+**Past consultations** (the 50 most recent) and stay there until you press **Remove booking**, which deletes
+the booking with its questionnaire, photos and catalogue after a confirm. Removing an upcoming booking opens
+its time slot again; tell the client yourself. Consultants also see their own past consultations. Each
+booking shows:
 
 - **Send on WhatsApp** / **Copy message** — a ready-written message to the client with their video link.
 - **Copy client link** — the plain video link, if you want to send it yourself.
