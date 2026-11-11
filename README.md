@@ -190,9 +190,18 @@ One password (`ADMIN_PASSWORD`) protects everything under `/admin`. Each upcomin
 ### Consultants (`/consultant`)
 
 Anyone can sign up as a consultant at `/consultant`: the first page asks for their name, email and phone,
-then emails a 6-digit code through Resend to prove the email (no password). They appear under
-**Admin -> Consultants** once they've entered the code; you can also add someone there yourself. Pausing or
-removing a consultant signs them out straight away and stops them signing in.
+then emails a 6-digit code through Resend to prove the email. After the code they land on **Your profile**
+(`/consultant/profile`) to set a password (at least 8 characters, stored as a scrypt hash) and fill in an
+optional photo, expertise, years of experience, languages, city, a short bio and an Instagram or portfolio
+link. From then on they sign in with email + password. Five wrong passwords lock the account for 15
+minutes. **Forgot password?** emails a code, and the code plus the new password are entered on one screen.
+
+They appear under **Admin -> Consultants** once they've entered the code, with their full profile, photo,
+whether a password is set and how many bookings they've been given; half-finished sign-ups are listed
+separately. **Give one-time code** creates a code (valid once, for 24 hours) with a ready WhatsApp message:
+it signs them in via "I have a code from the NAZAAKAT team", or resets their password via "Forgot password",
+for when email can't reach them. You can also add someone there yourself. Pausing or removing a consultant
+signs them out straight away and stops them signing in.
 
 Signed in, a consultant sees upcoming bookings that nobody has been given yet (time, length and the
 client's first name only) and can **ask to take** one. You get an email, and the booking's card on the
@@ -208,7 +217,7 @@ used to flood people's inboxes.
 email the Resend account was made with, so for consultants' own inboxes, verify a domain in Resend and
 set `NOTIFY_FROM_EMAIL` to an address on it. In local development without Resend, the code is printed in
 the terminal instead. Re-run `supabase/schema.sql` once to add the `consultants`, `consultant_codes` and
-`booking_requests` tables.
+`booking_requests` tables, the password and profile columns, and the private `consultant-photos` bucket.
 
 ### A booking's own catalogue
 

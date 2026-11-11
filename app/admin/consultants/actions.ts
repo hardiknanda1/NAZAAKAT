@@ -2,9 +2,45 @@
 
 import { refresh } from "next/cache";
 import { isSignedIn } from "@/app/admin/actions";
-import { normaliseEmail } from "@/lib/consultantAuth";
+import { hashCode, newCode, normaliseEmail } from "@/lib/consultantAuth";
 import { normalisePhone } from "@/lib/phone";
-import { acceptRequest, addConsultant, declineRequest, deleteConsultant, setConsultantActive, unassignBooking } from "@/lib/supabase";
+import {
+  acceptRequest,
+  addConsultant,
+  createCode,
+  declineRequest,
+  deleteConsultant,
+  getConsultant,
+  setConsultantActive,
+  unassignBooking,
+} from "@/lib/supabase";
+
+const ADMIN_CODE_HOURS = 24;
+
+/**
+ * A one-time code for a consultant that the admin sends them (e.g. on WhatsApp) instead of email. It
+ * signs them in, or lets them set a new password with "Forgot password", for 24 hours.
+ */
+export async function oneTimeCodeAction(_prev: { code?: string; error?: string } | null, form: FormData) {
+  const c = String(form.get("id") || "");
+  if (!(await isSignedIn()) || !UUID.test(c)) return { error: "Your sign-in has expired. Please refresh and sign in again." };
+  const consultant = await getConsultant(c).catch(() => null);
+  if (!consultant) return { error: "This consultant could not be found." };
+  if (!consultant.active) return { error: "This consultant is paused. Allow them again first." };
+  const code = newCode();
+  try {
+    await createCode({
+      consultant_id: consultant.id,
+      code_hash: hashCode(consultant.id, code),
+      expires_at: new Date(Date.now() + ADMIN_CODE_HOURS * 3_600_000).toISOString(),
+      created_by: "admin",
+    });
+  } catch (err) {
+    console.error("[admin/consultants] Could not create a code.", err);
+    return { error: "Could not create a code just now. Please try again." };
+  }
+  return { code };
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const id = (form: FormData) => {

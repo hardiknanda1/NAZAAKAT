@@ -19,18 +19,20 @@ export async function POST(request: Request) {
   const devMode = !emailConfigured() && process.env.NODE_ENV !== "production";
   if (!emailConfigured() && !devMode) return Response.json({ error: "email_not_configured" }, { status: 503 });
 
-  let body: { name?: string; email?: string; phone?: string };
+  let body: { name?: string; email?: string; phone?: string; purpose?: string };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
+  // "reset" (forgot password) only needs the email and never creates an account.
+  const reset = body.purpose === "reset";
   const name = String(body.name || "").trim().slice(0, 120);
   const email = normaliseEmail(body.email);
   const phone = normalisePhone(String(body.phone || ""));
-  if (!name) return Response.json({ error: "need_name" }, { status: 400 });
+  if (!reset && !name) return Response.json({ error: "need_name" }, { status: 400 });
   if (!email) return Response.json({ error: "need_email" }, { status: 400 });
-  if (!phone) return Response.json({ error: "need_phone" }, { status: 400 });
+  if (!reset && !phone) return Response.json({ error: "need_phone" }, { status: 400 });
 
   try {
     const ip = ipHash(request);
@@ -40,10 +42,12 @@ export async function POST(request: Request) {
 
     let consultant = await consultantByEmail(email);
     if (consultant && !consultant.active) return Response.json({ error: "paused" }, { status: 403 });
+    // Same reply as a real reset, so this can't be used to find out who has an account.
+    if (reset && (!consultant || !consultant.verified_at)) return Response.json({ ok: true });
     if (!consultant) {
-      consultant = (await addConsultant({ name, email, phone })) ?? (await consultantByEmail(email));
+      consultant = phone ? ((await addConsultant({ name, email, phone })) ?? (await consultantByEmail(email))) : null;
       if (!consultant) return Response.json({ error: "send_failed" }, { status: 502 });
-    } else if (!consultant.verified_at) {
+    } else if (!consultant.verified_at && phone) {
       await updateUnverifiedConsultant(consultant.id, { name, phone });
     }
 
@@ -68,9 +72,9 @@ export async function POST(request: Request) {
     }
     const sent = await sendEmail({
       to: [email],
-      subject: `Your NAZAAKAT sign-in code: ${code}`,
-      html: `<p>Hello ${escapeHtml(consultant.verified_at ? consultant.name : name)},</p><p>Your sign-in code is <strong style="font-size:20px;letter-spacing:3px">${code}</strong>.</p><p>It works for ${CODE_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
-      text: `Your NAZAAKAT sign-in code is ${code}. It works for ${CODE_MINUTES} minutes.`,
+      subject: reset ? `Your NAZAAKAT password reset code: ${code}` : `Your NAZAAKAT sign-in code: ${code}`,
+      html: `<p>Hello ${escapeHtml(consultant.verified_at ? consultant.name : name)},</p><p>Your ${reset ? "password reset" : "sign-in"} code is <strong style="font-size:20px;letter-spacing:3px">${code}</strong>.</p><p>It works for ${CODE_MINUTES} minutes. If you didn't ask for it, you can ignore this email.</p>`,
+      text: `Your NAZAAKAT ${reset ? "password reset" : "sign-in"} code is ${code}. It works for ${CODE_MINUTES} minutes.`,
     });
     if (sent === "sandbox") return Response.json({ error: "email_domain" }, { status: 503 });
     if (sent !== "sent") return Response.json({ error: "send_failed" }, { status: 502 });

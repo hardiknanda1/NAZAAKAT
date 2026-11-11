@@ -103,6 +103,20 @@ create index if not exists consultant_codes_consultant on public.consultant_code
 alter table public.consultants add column if not exists verified_at timestamptz;
 alter table public.consultant_codes add column if not exists ip_hash text; -- keyed hash, only for rate limits
 create index if not exists consultant_codes_ip on public.consultant_codes (ip_hash, created_at);
+-- Consultant passwords (scrypt hash; never the password itself), lock-out after repeated wrong tries,
+-- and their profile.
+alter table public.consultants add column if not exists password_hash text;
+alter table public.consultants add column if not exists failed_logins int not null default 0;
+alter table public.consultants add column if not exists locked_until timestamptz;
+alter table public.consultants add column if not exists photo_path text; -- in the private consultant-photos bucket
+alter table public.consultants add column if not exists expertise text[] not null default '{}';
+alter table public.consultants add column if not exists years_experience int;
+alter table public.consultants add column if not exists languages text[] not null default '{}';
+alter table public.consultants add column if not exists city text;
+alter table public.consultants add column if not exists bio text;
+alter table public.consultants add column if not exists portfolio_url text;
+-- Codes the admin hands out (e.g. on WhatsApp) instead of emailing.
+alter table public.consultant_codes add column if not exists created_by text not null default 'email'; -- email | admin
 alter table public.consultant_codes enable row level security;
 
 -- A consultant asking to take a booking; the admin accepts one request per booking.
@@ -130,4 +144,8 @@ on conflict (id) do nothing;
 
 insert into storage.buckets (id, name, public)
 values ('booking-catalogues', 'booking-catalogues', false)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('consultant-photos', 'consultant-photos', false)
 on conflict (id) do nothing;

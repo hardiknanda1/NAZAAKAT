@@ -427,6 +427,16 @@ export type Consultant = {
   phone: string | null;
   active: boolean;
   verified_at: string | null; // set once they prove the email with a code (or the admin adds them)
+  password_hash: string | null;
+  failed_logins: number;
+  locked_until: string | null;
+  photo_path: string | null;
+  expertise: string[];
+  years_experience: number | null;
+  languages: string[];
+  city: string | null;
+  bio: string | null;
+  portfolio_url: string | null;
 };
 export type ConsultantCode = { id: string; created_at: string; consultant_id: string; code_hash: string; expires_at: string; attempts: number; used_at: string | null };
 export type BookingRequest = {
@@ -454,6 +464,9 @@ async function write<T>(path: string, method: "POST" | "PATCH", body: unknown, w
   );
   return res.json();
 }
+
+/** Everyone who has signed up, including those who haven't entered their email code yet. */
+export const listAllConsultants = () => rows<Consultant>("/consultants?select=*&order=created_at.desc", "read consultants");
 
 /** Consultants whose email is proven (half-finished sign-ups are left out). */
 export const listConsultants = () => rows<Consultant>("/consultants?verified_at=not.is.null&select=*&order=name.asc", "read consultants");
@@ -499,7 +512,9 @@ export async function codesFromIpSince(ipHash: string, sinceIso: string) {
   return (await rows<{ id: string }>(`/consultant_codes?ip_hash=eq.${ipHash}&created_at=gte.${encodeURIComponent(sinceIso)}&select=id`, "count codes")).length;
 }
 
-export async function createCode(c: Pick<ConsultantCode, "consultant_id" | "code_hash" | "expires_at"> & { ip_hash: string }) {
+export async function createCode(
+  c: Pick<ConsultantCode, "consultant_id" | "code_hash" | "expires_at"> & { ip_hash?: string; created_by?: "email" | "admin" },
+) {
   await write("/consultant_codes", "POST", c, "save code");
 }
 
@@ -573,4 +588,37 @@ export async function declineRequest(requestId: string) {
 export async function unassignBooking(bookingId: string) {
   await write(`/bookings?id=eq.${bookingId}`, "PATCH", { consultant_id: null }, "unassign booking");
   await write(`/booking_requests?booking_id=eq.${bookingId}&status=eq.accepted`, "PATCH", { status: "declined", decided_at: new Date().toISOString() }, "reset request");
+}
+
+export const CONSULTANT_PHOTO_BUCKET = "consultant-photos";
+
+export async function updateConsultant(id: string, fields: Partial<Omit<Consultant, "id" | "created_at" | "email">>) {
+  await write(`/consultants?id=eq.${id}`, "PATCH", fields, "update consultant");
+}
+
+export async function uploadConsultantPhoto(path: string, body: ArrayBuffer, contentType: string) {
+  await check(
+    await fetch(`${url()}/storage/v1/object/${CONSULTANT_PHOTO_BUCKET}/${path}`, {
+      method: "POST",
+      headers: headers({ "Content-Type": contentType, "x-upsert": "true" }),
+      body,
+    }),
+    "photo upload",
+  );
+}
+
+export async function deleteConsultantPhoto(path: string) {
+  await fetch(`${url()}/storage/v1/object/${CONSULTANT_PHOTO_BUCKET}`, {
+    method: "DELETE",
+    headers: headers({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ prefixes: [path] }),
+  });
+}
+
+/** How many bookings (past and upcoming) each consultant has been given. */
+export async function bookingCountsByConsultant(): Promise<Record<string, number>> {
+  const list = await rows<{ consultant_id: string }>("/bookings?consultant_id=not.is.null&select=consultant_id", "count bookings");
+  const out: Record<string, number> = {};
+  for (const b of list) out[b.consultant_id] = (out[b.consultant_id] || 0) + 1;
+  return out;
 }
