@@ -189,9 +189,10 @@ One password (`ADMIN_PASSWORD`) protects everything under `/admin`. Each upcomin
 
 ### Consultants (`/consultant`)
 
-Add consultants (name, email, phone) under **Admin -> Consultants**. They sign in at `/consultant` with
-a 6-digit code emailed to them through Resend: no password, no sign-up. Only emails on your list can sign
-in, and pausing or removing a consultant signs them out straight away.
+Anyone can sign up as a consultant at `/consultant`: the first page asks for their name, email and phone,
+then emails a 6-digit code through Resend to prove the email (no password). They appear under
+**Admin -> Consultants** once they've entered the code; you can also add someone there yourself. Pausing or
+removing a consultant signs them out straight away and stops them signing in.
 
 Signed in, a consultant sees upcoming bookings that nobody has been given yet (time, length and the
 client's first name only) and can **ask to take** one. You get an email, and the booking's card on the
@@ -200,8 +201,8 @@ admin page shows the request with **Accept** / **Decline**. Accepting gives the 
 "Your consultations" with the consultant (host) video link. **Take back** on the card undoes it.
 
 Codes are stored only as keyed hashes, expire after 10 minutes, allow 5 tries, and each one works once;
-a consultant can ask for one code a minute and five an hour. The form gives the same reply for emails that
-aren't on the list, so it can't be used to find out who is a consultant.
+each email can get one code a minute and five an hour, and each network eight an hour, so the form can't be
+used to flood people's inboxes.
 
 **Email:** codes go out through Resend (`RESEND_API_KEY`). Resend's free test sender only delivers to the
 email the Resend account was made with, so for consultants' own inboxes, verify a domain in Resend and

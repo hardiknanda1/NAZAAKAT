@@ -1,5 +1,5 @@
 import { codeMatches, normaliseEmail, startSession } from "@/lib/consultantAuth";
-import { activeCode, consultantByEmail, countCodeAttempt, spendCode } from "@/lib/supabase";
+import { activeCode, consultantByEmail, countCodeAttempt, markConsultantVerified, spendCode } from "@/lib/supabase";
 
 const MAX_ATTEMPTS = 5;
 
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     }
     if (!(await spendCode(pending.id))) return Response.json({ error: "wrong_code" }, { status: 400 });
 
+    if (!consultant.verified_at) await markConsultantVerified(consultant.id); // the email is now proven
     await startSession(consultant.id);
     return Response.json({ ok: true });
   } catch (err) {

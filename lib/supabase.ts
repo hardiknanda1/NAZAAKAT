@@ -419,7 +419,15 @@ export async function redeemDiscount(id: string, phone: string, bookingId: strin
 
 // ---- Consultants, their sign-in codes, and their requests to take bookings ----
 
-export type Consultant = { id: string; created_at: string; name: string; email: string; phone: string | null; active: boolean };
+export type Consultant = {
+  id: string;
+  created_at: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  active: boolean;
+  verified_at: string | null; // set once they prove the email with a code (or the admin adds them)
+};
 export type ConsultantCode = { id: string; created_at: string; consultant_id: string; code_hash: string; expires_at: string; attempts: number; used_at: string | null };
 export type BookingRequest = {
   id: string;
@@ -447,7 +455,8 @@ async function write<T>(path: string, method: "POST" | "PATCH", body: unknown, w
   return res.json();
 }
 
-export const listConsultants = () => rows<Consultant>("/consultants?select=*&order=name.asc", "read consultants");
+/** Consultants whose email is proven (half-finished sign-ups are left out). */
+export const listConsultants = () => rows<Consultant>("/consultants?verified_at=not.is.null&select=*&order=name.asc", "read consultants");
 
 export async function getConsultant(id: string): Promise<Consultant | null> {
   return (await rows<Consultant>(`/consultants?id=eq.${id}&select=*&limit=1`, "read consultant"))[0] ?? null;
@@ -458,7 +467,7 @@ export async function consultantByEmail(email: string): Promise<Consultant | nul
 }
 
 /** Adds a consultant; returns null if that email is already on the list. */
-export async function addConsultant(c: { name: string; email: string; phone: string | null }): Promise<Consultant | null> {
+export async function addConsultant(c: { name: string; email: string; phone: string | null; verified_at?: string | null }): Promise<Consultant | null> {
   const res = await fetch(rest("/consultants"), {
     method: "POST",
     headers: headers({ "Content-Type": "application/json", Prefer: "return=representation" }),
@@ -477,7 +486,20 @@ export async function deleteConsultant(id: string) {
   await check(await fetch(rest(`/consultants?id=eq.${id}`), { method: "DELETE", headers: headers() }), "remove consultant");
 }
 
-export async function createCode(c: Pick<ConsultantCode, "consultant_id" | "code_hash" | "expires_at">) {
+/** Updates the name and phone of a sign-up that hasn't proven its email yet (a proven account is never changed this way). */
+export async function updateUnverifiedConsultant(id: string, c: { name: string; phone: string }) {
+  await write(`/consultants?id=eq.${id}&verified_at=is.null`, "PATCH", c, "update sign-up");
+}
+
+export async function markConsultantVerified(id: string) {
+  await write(`/consultants?id=eq.${id}&verified_at=is.null`, "PATCH", { verified_at: new Date().toISOString() }, "verify consultant");
+}
+
+export async function codesFromIpSince(ipHash: string, sinceIso: string) {
+  return (await rows<{ id: string }>(`/consultant_codes?ip_hash=eq.${ipHash}&created_at=gte.${encodeURIComponent(sinceIso)}&select=id`, "count codes")).length;
+}
+
+export async function createCode(c: Pick<ConsultantCode, "consultant_id" | "code_hash" | "expires_at"> & { ip_hash: string }) {
   await write("/consultant_codes", "POST", c, "save code");
 }
 
