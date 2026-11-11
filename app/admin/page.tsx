@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { CalendarCog, MessageCircle, Users } from "lucide-react";
 import Link from "next/link";
-import { formatWhen } from "@/lib/time";
+import { formatWhen, nowMs } from "@/lib/time";
 import { consultationLinks } from "@/lib/meeting";
 import { site, whatsappLink } from "@/lib/site";
 import {
@@ -15,13 +15,16 @@ import {
   unusedDiscountForPhone,
   type BookingRequest,
   type Consultant,
-  upcomingBookings,
+  bookingEnds,
+  currentBookings,
+  pastBookings,
   type BookingRow,
   type Intake,
   PHOTO_BUCKET,
 } from "@/lib/supabase";
 import CopyButton from "./CopyButton";
 import IntakeSummary from "./IntakeSummary";
+import RemoveBookingButton from "./RemoveBookingButton";
 import { acceptRequestAction, declineRequestAction, unassignAction } from "./consultants/actions";
 
 export const metadata: Metadata = {
@@ -87,11 +90,15 @@ async function BookingCard({
   booking,
   requests,
   consultants,
+  now,
 }: {
   booking: BookingRow;
   requests: BookingRequest[];
   consultants: Map<string, Consultant>;
+  now: number;
 }) {
+  const ended = bookingEnds(booking) <= now;
+  const live = !ended && new Date(booking.starts_at).getTime() <= now;
   const links = consultationLinks(site.url, booking.room);
   const infoLink = `${site.url.replace(/\/$/, "")}/admin/booking/${booking.id}`;
   const when = formatWhen(booking.starts_at);
@@ -121,7 +128,11 @@ async function BookingCard({
     <li className="border border-taupe/50 bg-white/60 p-5 sm:p-7">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-serif text-3xl font-medium text-charcoal">{booking.name}</h2>
-        <p className="text-base font-medium text-chocolate">{when} IST</p>
+        <p className="text-base font-medium text-chocolate">
+          {when} IST
+          {live && <span className="ml-2 rounded-full bg-chocolate px-2.5 py-0.5 text-xs font-medium text-ivory">Happening now</span>}
+          {ended && <span className="ml-2 rounded-full bg-beige px-2.5 py-0.5 text-xs font-medium text-muted">Ended</span>}
+        </p>
       </div>
       <p className="mt-1 text-base text-muted">+{phone}</p>
       {booking.discount_percent ? (
@@ -178,6 +189,10 @@ async function BookingCard({
       </p>
 
       {intake ? <IntakeSummary intake={intake} urls={urls} /> : <p className="mt-5 text-base text-muted">Questionnaire and photos not sent yet.</p>}
+
+      <div className="mt-5 flex justify-end border-t border-taupe/30 pt-3">
+        <RemoveBookingButton id={booking.id} name={booking.name} upcoming={!ended} />
+      </div>
     </li>
   );
 }
@@ -188,33 +203,43 @@ async function Bookings() {
     return <p className="text-lg text-muted">Add SUPABASE_URL and SUPABASE_SECRET_KEY in Vercel to see bookings here.</p>;
   }
 
-  let bookings: BookingRow[];
+  const now = nowMs();
+  let upcoming: BookingRow[];
+  let past: BookingRow[];
   try {
-    bookings = await upcomingBookings(new Date().toISOString());
+    [upcoming, past] = await Promise.all([currentBookings(now), pastBookings(now)]);
   } catch (err) {
     console.error("[admin] Could not load bookings from Supabase.", err);
     return <p role="alert" className="text-lg text-chocolate">Could not load bookings. Check the Supabase settings.</p>;
   }
 
-  if (bookings.length === 0) return <p className="text-lg text-muted">No upcoming bookings.</p>;
-
   // Consultant requests: optional, so a missing table (schema not re-run yet) never hides the bookings.
   let requests: BookingRequest[] = [];
   let consultants = new Map<string, Consultant>();
   try {
-    const [r, c] = await Promise.all([requestsForBookings(bookings.map((b) => b.id)), listConsultants()]);
+    const [r, c] = await Promise.all([requestsForBookings([...upcoming, ...past].map((b) => b.id)), listConsultants()]);
     requests = r;
     consultants = new Map(c.map((x) => [x.id, x]));
   } catch (err) {
     console.error("[admin] Could not load consultant requests (run the current supabase/schema.sql).", err);
   }
+  const card = (b: BookingRow) => (
+    <BookingCard key={b.id} booking={b} requests={requests.filter((r) => r.booking_id === b.id)} consultants={consultants} now={now} />
+  );
 
   return (
-    <ul className="space-y-6">
-      {bookings.map((b) => (
-        <BookingCard key={b.id} booking={b} requests={requests.filter((r) => r.booking_id === b.id)} consultants={consultants} />
-      ))}
-    </ul>
+    <>
+      {upcoming.length === 0 ? <p className="text-lg text-muted">No upcoming bookings.</p> : <ul className="space-y-6">{upcoming.map(card)}</ul>}
+      {past.length > 0 && (
+        <section className="mt-16">
+          <h2 className="font-serif text-4xl font-medium text-charcoal">Past consultations</h2>
+          <p className="mt-2 text-base text-muted">
+            Bookings stay here after their time slot ends, most recent first, until you remove them.
+          </p>
+          <ul className="mt-6 space-y-6">{past.map(card)}</ul>
+        </section>
+      )}
+    </>
   );
 }
 
@@ -254,7 +279,7 @@ export default function AdminPage() {
     <div className="container-x max-w-4xl py-12">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-5xl font-medium text-charcoal">Upcoming consultations</h1>
+          <h1 className="font-serif text-5xl font-medium text-charcoal">Consultations</h1>
           <p className="mt-3 max-w-2xl text-lg text-muted">
             Tap <strong className="font-medium text-charcoal">Send on WhatsApp</strong> to message the client. Send{" "}
             <strong className="font-medium text-charcoal">Copy consultant info link</strong> to your consultant so they can

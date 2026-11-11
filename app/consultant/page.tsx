@@ -5,8 +5,8 @@ import CopyButton from "@/app/admin/CopyButton";
 import { currentConsultant } from "@/lib/consultantAuth";
 import { consultationLinks } from "@/lib/meeting";
 import { consultantHelp, site } from "@/lib/site";
-import { formatWhen } from "@/lib/time";
-import { consultantBookings, requestsByConsultant, unassignedBookings, type BookingRow } from "@/lib/supabase";
+import { formatWhen, nowMs } from "@/lib/time";
+import { currentBookings, pastBookings, requestsByConsultant, unassignedBookings, type BookingRow } from "@/lib/supabase";
 import ConsultantLogin from "./ConsultantLogin";
 import RequestButton from "./RequestButton";
 import SignOutButton from "./SignOutButton";
@@ -46,13 +46,21 @@ async function Dashboard() {
   const consultant = await currentConsultant();
   if (!consultant) return <ConsultantLogin {...consultantHelp()} />;
 
-  const now = new Date().toISOString();
+  const t = nowMs();
+  const now = new Date(t).toISOString();
   let mine: BookingRow[] = [];
+  let done: BookingRow[] = [];
   let open: BookingRow[] = [];
   let requested = new Map<string, string>();
   try {
-    const [m, o, r] = await Promise.all([consultantBookings(consultant.id, now), unassignedBookings(now), requestsByConsultant(consultant.id)]);
+    const [m, d, o, r] = await Promise.all([
+      currentBookings(t, consultant.id),
+      pastBookings(t, consultant.id, 20),
+      unassignedBookings(now),
+      requestsByConsultant(consultant.id),
+    ]);
     mine = m;
+    done = d;
     open = o;
     requested = new Map(r.map((x) => [x.booking_id, x.status]));
   } catch (err) {
@@ -100,6 +108,20 @@ async function Dashboard() {
           </ul>
         )}
       </section>
+
+      {done.length > 0 && (
+        <section className="mt-12">
+          <h2 className="font-serif text-2xl font-medium text-charcoal">Past consultations</h2>
+          <ul className="mt-3 divide-y divide-taupe/40 border-y border-taupe/40">
+            {done.map((b) => (
+              <li key={b.id} className="flex flex-wrap justify-between gap-2 py-3 text-base">
+                <span className="text-charcoal">{b.name}</span>
+                <span className="text-muted">{formatWhen(b.starts_at)} IST · {b.duration_minutes} minutes</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-14">
         <h2 className="font-serif text-3xl font-medium text-charcoal">Available consultations</h2>

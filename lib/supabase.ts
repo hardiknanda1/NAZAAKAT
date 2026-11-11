@@ -238,15 +238,39 @@ export async function getBooking(id: string): Promise<BookingRow | null> {
   return rows[0] ?? null;
 }
 
-export async function upcomingBookings(fromIso: string, limit = 100): Promise<BookingRow[]> {
-  const res = await check(
-    await fetch(rest(`/bookings?status=eq.confirmed&starts_at=gte.${fromIso}&select=*&order=starts_at.asc&limit=${limit}`), {
-      headers: headers(),
-      cache: "no-store",
-    }),
-    "read bookings",
-  );
-  return res.json();
+/** When a booking's time slot ends. */
+export const bookingEnds = (b: Pick<BookingRow, "starts_at" | "duration_minutes">) => new Date(b.starts_at).getTime() + (b.duration_minutes || 60) * 60_000;
+
+// Bookings are looked up a few hours before "now" so one that has started but not ended still counts as current.
+const LOOKBACK_MS = 6 * 3_600_000;
+
+/** Bookings whose slot hasn't ended yet (including one happening right now), soonest first. */
+export async function currentBookings(now = Date.now(), consultantId?: string): Promise<BookingRow[]> {
+  const from = new Date(now - LOOKBACK_MS).toISOString();
+  const who = consultantId ? `&consultant_id=eq.${consultantId}` : "";
+  const list = await rows<BookingRow>(`/bookings?status=eq.confirmed${who}&starts_at=gte.${from}&select=*&order=starts_at.asc&limit=200`, "read bookings");
+  return list.filter((b) => bookingEnds(b) > now);
+}
+
+/** Bookings whose slot has ended, most recent first. They stay until the admin removes them. */
+export async function pastBookings(now = Date.now(), consultantId?: string, limit = 50): Promise<BookingRow[]> {
+  const before = new Date(now).toISOString();
+  const who = consultantId ? `&consultant_id=eq.${consultantId}` : "";
+  const list = await rows<BookingRow>(`/bookings?status=eq.confirmed${who}&starts_at=lt.${before}&select=*&order=starts_at.desc&limit=${limit + 20}`, "read bookings");
+  return list.filter((b) => bookingEnds(b) <= now).slice(0, limit);
+}
+
+/**
+ * Deletes a booking for good: its questionnaire and photos, its catalogue files and consultant requests.
+ * A discount used on it stays used. An upcoming booking's time slot opens again for others to book.
+ */
+export async function removeBooking(booking: BookingRow) {
+  const intakes = await rows<{ id: string; photos: string[] }>(`/consultation_intake?booking_id=eq.${booking.id}&select=id,photos`, "read questionnaire");
+  await deletePhotos(intakes.flatMap((i) => i.photos || [])).catch(() => {});
+  if (intakes.length) await check(await fetch(rest(`/consultation_intake?booking_id=eq.${booking.id}`), { method: "DELETE", headers: headers() }), "remove questionnaire");
+  await write(`/shape_discounts?booking_id=eq.${booking.id}`, "PATCH", { booking_id: null }, "detach discount");
+  await clearCatalogueFolder(booking.id).catch(() => {});
+  await cancelBooking(booking.id, bookingEnds(booking) > Date.now() ? booking.slot_id : null);
 }
 
 export async function setBookingCatalogue(id: string, catalogue: Catalogue) {
@@ -514,9 +538,6 @@ export async function signupsFromIpSince(ipHash: string, sinceIso: string) {
 /** Upcoming confirmed bookings no consultant has been given yet. */
 export const unassignedBookings = (fromIso: string) =>
   rows<BookingRow>(`/bookings?status=eq.confirmed&consultant_id=is.null&starts_at=gte.${fromIso}&select=*&order=starts_at.asc&limit=200`, "read bookings");
-
-export const consultantBookings = (consultantId: string, fromIso: string) =>
-  rows<BookingRow>(`/bookings?consultant_id=eq.${consultantId}&status=eq.confirmed&starts_at=gte.${fromIso}&select=*&order=starts_at.asc&limit=200`, "read bookings");
 
 export const requestsByConsultant = (consultantId: string) =>
   rows<BookingRequest>(`/booking_requests?consultant_id=eq.${consultantId}&select=*`, "read requests");
